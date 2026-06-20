@@ -33,7 +33,13 @@ type Options = {
 }
 
 function readOptions(): Options {
+  const args = process.argv.slice(2)
+  if (args[0] === '--') {
+    args.shift()
+  }
+
   const parsed = parseArgs({
+    args,
     options: {
       app: { type: 'string', default: 'sales-report' },
       package: { type: 'string' },
