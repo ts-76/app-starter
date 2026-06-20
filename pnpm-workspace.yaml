@@ -15,7 +15,7 @@ catalog:
   'lefthook': '^1'
   'oxfmt': '^0'
   'oxlint': '^1'
-  'secretlint': '^12'
+  'secretlint': '^13'
   'typescript': '^5'
   'wrangler': '4.102.0'
   'zod': '^3'
