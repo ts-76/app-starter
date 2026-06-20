@@ -25,6 +25,7 @@ type Options = {
   buildCommand: string
   deployCommand: string
   buildTokenUuid: string
+  buildTokenName: string
   deployBootstrap: boolean
   triggerBuild: boolean
   push: boolean
@@ -49,6 +50,7 @@ function readOptions(): Options {
       'build-command': { type: 'string' },
       'deploy-command': { type: 'string' },
       'build-token-uuid': { type: 'string' },
+      'build-token-name': { type: 'string' },
       'account-id': { type: 'string' },
       deploy: { type: 'boolean', default: false },
       'trigger-build': { type: 'boolean', default: false },
@@ -69,6 +71,8 @@ function readOptions(): Options {
     deployCommand: parsed.values['deploy-command'] ?? 'pnpm deploy',
     buildTokenUuid:
       parsed.values['build-token-uuid'] ?? process.env.CLOUDFLARE_BUILD_TOKEN_UUID ?? '',
+    buildTokenName:
+      parsed.values['build-token-name'] ?? process.env.CLOUDFLARE_BUILD_TOKEN_NAME ?? '',
     accountId: parsed.values['account-id'] ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? '',
     deployBootstrap: parsed.values.deploy ?? false,
     triggerBuild: parsed.values['trigger-build'] ?? false,
@@ -136,15 +140,33 @@ async function main(): Promise<void> {
   let buildTokenUuid = options.buildTokenUuid
   if (!buildTokenUuid) {
     const buildTokens = await client.listBuildTokens()
+    const requestedToken = options.buildTokenName
+      ? buildTokens.find((token) => token.build_token_name === options.buildTokenName)
+      : undefined
 
-    if (buildTokens.length === 1 && buildTokens[0]) {
+    if (requestedToken) {
+      buildTokenUuid = requestedToken.build_token_uuid
+      console.log(`Using Cloudflare build token by name: ${requestedToken.build_token_name}`)
+    } else if (buildTokens.length === 1 && buildTokens[0]) {
       buildTokenUuid = buildTokens[0].build_token_uuid
       console.log(
         `Using the only Cloudflare build token: ${buildTokens[0].build_token_name ?? buildTokenUuid}`,
       )
     } else {
+      const tokenList = buildTokens
+        .map((token) => {
+          const name = token.build_token_name ?? '(unnamed)'
+          return `- ${name}: ${token.build_token_uuid}`
+        })
+        .join('\n')
+
       throw new Error(
-        `CLOUDFLARE_BUILD_TOKEN_UUID is required because ${buildTokens.length} build tokens were found. Create/select a build token in Worker > Settings > Builds > API token.`,
+        [
+          `CLOUDFLARE_BUILD_TOKEN_UUID or CLOUDFLARE_BUILD_TOKEN_NAME is required because ${buildTokens.length} build tokens were found.`,
+          'Available build tokens:',
+          tokenList || '- none',
+          'Set CLOUDFLARE_BUILD_TOKEN_UUID, pass --build-token-uuid, or pass --build-token-name.',
+        ].join('\n'),
       )
     }
   }

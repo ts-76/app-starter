@@ -26,10 +26,11 @@ Optional:
 
 ```txt
 CLOUDFLARE_BUILD_TOKEN_UUID
+CLOUDFLARE_BUILD_TOKEN_NAME
 CLOUDFLARE_ACCOUNT_ID
 ```
 
-If exactly one Cloudflare build token exists, the bootstrap script auto-selects it via the Builds API. If none or multiple exist, set this value explicitly.
+If exactly one Cloudflare build token exists, the bootstrap script auto-selects it via the Builds API. If multiple exist, set either `CLOUDFLARE_BUILD_TOKEN_UUID` or `CLOUDFLARE_BUILD_TOKEN_NAME` explicitly.
 
 If Wrangler is logged in and returns exactly one Cloudflare account, `CLOUDFLARE_ACCOUNT_ID` is auto-detected from `wrangler whoami --json`. If multiple accounts are available, set `CLOUDFLARE_ACCOUNT_ID` or pass `--account-id`.
 
