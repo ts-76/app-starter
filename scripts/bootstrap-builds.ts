@@ -32,6 +32,8 @@ type Options = {
   push: boolean
   dryRun: boolean
   accountId: string
+  listBuilds: boolean
+  buildLogs: string
 }
 
 function readOptions(): Options {
@@ -56,6 +58,8 @@ function readOptions(): Options {
       'account-id': { type: 'string' },
       deploy: { type: 'boolean', default: false },
       'trigger-build': { type: 'boolean', default: false },
+      'list-builds': { type: 'boolean', default: false },
+      'build-logs': { type: 'string' },
       push: { type: 'boolean', default: false },
       'dry-run': { type: 'boolean', default: false },
     },
@@ -84,6 +88,34 @@ function readOptions(): Options {
     triggerBuild: parsed.values['trigger-build'] ?? false,
     push: parsed.values.push ?? false,
     dryRun: parsed.values['dry-run'] ?? false,
+    listBuilds: parsed.values['list-builds'] ?? false,
+    buildLogs: parsed.values['build-logs'] ?? '',
+  }
+}
+
+function printBuilds(
+  builds: Array<{
+    build_uuid: string
+    status?: string
+    branch?: string
+    created_at?: string
+    build_trigger_metadata?: { branch?: string; commit_hash?: string }
+  }>,
+): void {
+  if (builds.length === 0) {
+    console.log('No Cloudflare Builds found for this Worker.')
+    return
+  }
+
+  for (const build of builds.slice(0, 10)) {
+    const branch = build.branch ?? build.build_trigger_metadata?.branch ?? '(unknown branch)'
+    const commit = build.build_trigger_metadata?.commit_hash
+      ? ` ${build.build_trigger_metadata.commit_hash.slice(0, 12)}`
+      : ''
+    const created = build.created_at ? ` ${build.created_at}` : ''
+    console.log(
+      `- ${build.build_uuid} ${build.status ?? '(unknown status)'} ${branch}${commit}${created}`,
+    )
   }
 }
 
@@ -235,6 +267,17 @@ async function main(): Promise<void> {
   const triggers = await client.listTriggers(worker.tag)
   const existing = findProductionTrigger(triggers, options.branch)
 
+  if (options.buildLogs) {
+    const logs = await client.getBuildLogs(options.buildLogs)
+    console.log(JSON.stringify(logs, null, 2))
+    return
+  }
+
+  if (options.listBuilds) {
+    printBuilds(await client.listBuilds(worker.tag))
+    return
+  }
+
   if (existing) {
     console.log(
       `Existing Builds trigger found: ${existing.trigger_name} (${existing.trigger_uuid})`,
@@ -285,8 +328,10 @@ async function main(): Promise<void> {
       if (options.dryRun) {
         console.log(`[dry-run] would trigger build for ${options.branch}`)
       } else {
-        await client.triggerBuild(existing.trigger_uuid, options.branch)
+        const build = await client.triggerBuild(existing.trigger_uuid, options.branch)
         console.log(`Triggered Cloudflare build for ${options.branch}.`)
+        console.log(JSON.stringify(build, null, 2))
+        printBuilds(await client.listBuilds(worker.tag))
       }
     }
 
@@ -339,8 +384,10 @@ async function main(): Promise<void> {
   console.log(`Created Builds trigger: ${trigger.trigger_uuid}`)
 
   if (options.triggerBuild) {
-    await client.triggerBuild(trigger.trigger_uuid, options.branch)
+    const build = await client.triggerBuild(trigger.trigger_uuid, options.branch)
     console.log(`Triggered first Cloudflare build for ${options.branch}.`)
+    console.log(JSON.stringify(build, null, 2))
+    printBuilds(await client.listBuilds(worker.tag))
   }
 }
 

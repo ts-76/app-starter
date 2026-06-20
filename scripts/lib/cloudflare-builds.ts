@@ -34,6 +34,18 @@ export type BuildTrigger = {
   root_directory?: string
 }
 
+export type Build = {
+  build_uuid: string
+  status?: string
+  branch?: string
+  created_at?: string
+  updated_at?: string
+  build_trigger_metadata?: {
+    branch?: string
+    commit_hash?: string
+  }
+}
+
 export type EnvironmentVariable = {
   value: string
   is_secret: boolean
@@ -173,5 +185,13 @@ export class CloudflareBuildsClient {
 
   triggerBuild(triggerUuid: string, branch: string): Promise<unknown> {
     return this.request<unknown>('POST', `/builds/triggers/${triggerUuid}/builds`, { branch })
+  }
+
+  listBuilds(workerTag: string): Promise<Build[]> {
+    return this.request<Build[]>('GET', `/builds/workers/${workerTag}/builds`)
+  }
+
+  getBuildLogs(buildUuid: string): Promise<unknown> {
+    return this.request<unknown>('GET', `/builds/builds/${buildUuid}/logs`)
   }
 }

@@ -77,4 +77,16 @@ Trigger a manual Cloudflare build:
 op run --env-file .env.1password -- pnpm bootstrap:builds -- --trigger-build
 ```
 
+List recent Cloudflare Builds for the Worker:
+
+```sh
+op run --env-file .env.1password -- pnpm bootstrap:builds -- --list-builds --build-token-uuid <uuid>
+```
+
+Get logs for a specific build:
+
+```sh
+op run --env-file .env.1password -- pnpm bootstrap:builds -- --build-logs <build_uuid> --build-token-uuid <uuid>
+```
+
 The script does not create GitHub personal access tokens, authorize the Cloudflare GitHub App, or create Cloudflare build tokens. It detects those missing prerequisites and stops with the next action.
