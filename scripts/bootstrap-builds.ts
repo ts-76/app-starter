@@ -176,10 +176,10 @@ async function main(): Promise<void> {
 
   if (!worker && options.deployBootstrap) {
     if (options.dryRun) {
-      console.log(`[dry-run] would run: pnpm --filter ${options.packageName} deploy`)
+      console.log(`[dry-run] would run: pnpm --filter ${options.packageName} run deploy`)
     } else {
       console.log('Worker not found. Running explicit bootstrap deploy...')
-      const status = runInherited('pnpm', ['--filter', options.packageName, 'deploy'])
+      const status = runInherited('pnpm', ['--filter', options.packageName, 'run', 'deploy'])
       if (status !== 0) {
         throw new Error(`Bootstrap deploy failed with exit code ${status}.`)
       }
