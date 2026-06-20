@@ -1,0 +1,45 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sales-report",
+  "main": "src/index.tsx",
+  "compatibility_date": "2026-06-19",
+  "workers_dev": false,
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "sales-report-prod",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ASSETS_BUCKET",
+      "bucket_name": "sales-report-assets-prod",
+    },
+  ],
+  "vars": {
+    "APP_ENV": "production",
+  },
+  "env": {
+    "staging": {
+      "name": "sales-report-staging",
+      "workers_dev": false,
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "sales-report-staging",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+        },
+      ],
+      "r2_buckets": [
+        {
+          "binding": "ASSETS_BUCKET",
+          "bucket_name": "sales-report-assets-staging",
+        },
+      ],
+      "vars": {
+        "APP_ENV": "staging",
+      },
+    },
+  },
+}

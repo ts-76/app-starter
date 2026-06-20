@@ -1,0 +1,27 @@
+{
+  "name": "internal-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bootstrap:builds": "node --experimental-strip-types scripts/bootstrap-builds.ts",
+    "doctor": "node --experimental-strip-types scripts/doctor.ts",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix",
+    "format": "oxfmt . --write",
+    "format:check": "oxfmt . --check",
+    "secretlint": "secretlint \"**/*\"",
+    "typecheck": "pnpm -r --if-present typecheck && tsc -p tsconfig.scripts.json --noEmit",
+    "check": "pnpm format:check && pnpm lint && pnpm secretlint && pnpm typecheck",
+    "prepare": "node scripts/install-lefthook-if-git.js"
+  },
+  "devDependencies": {
+    "@secretlint/secretlint-rule-preset-recommend": "latest",
+    "@types/node": "catalog:",
+    "lefthook": "catalog:",
+    "oxfmt": "catalog:",
+    "oxlint": "catalog:",
+    "secretlint": "catalog:",
+    "typescript": "catalog:"
+  },
+  "packageManager": "pnpm@11.8.0"
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@internal/sales-report",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "check": "pnpm typecheck",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@internal/cloudflare-access": "workspace:*",
+    "@internal/config": "workspace:*",
+    "@internal/ui": "workspace:*",
+    "hono": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "catalog:",
+    "@internal/typescript-config": "workspace:*",
+    "typescript": "catalog:",
+    "wrangler": "catalog:"
+  }
+}

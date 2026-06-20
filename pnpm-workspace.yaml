@@ -1,0 +1,21 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+allowBuilds:
+  esbuild: true
+  lefthook: true
+  sharp: true
+  workerd: true
+
+catalog:
+  '@cloudflare/workers-types': '4.20260617.1'
+  '@types/node': '^24'
+  'hono': '^4'
+  'lefthook': '^1'
+  'oxfmt': '^0'
+  'oxlint': '^1'
+  'secretlint': '^12'
+  'typescript': '^5'
+  'wrangler': '4.102.0'
+  'zod': '^3'

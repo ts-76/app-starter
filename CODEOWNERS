@@ -1,0 +1,12 @@
+/ops/terraform/ @platform-team
+/packages/cloudflare-access/ @platform-team
+/packages/quality-config/ @platform-team
+/.github/ @platform-team
+/.claude/ @platform-team
+/lefthook.yml @platform-team
+/.oxlintrc.json @platform-team
+/.oxfmtrc.json @platform-team
+/.secretlintrc.json @platform-team
+/pnpm-workspace.yaml @platform-team
+/pnpm-lock.yaml @platform-team
+/apps/sales-report/ @sales-team @platform-team

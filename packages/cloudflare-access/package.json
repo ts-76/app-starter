@@ -1,0 +1,20 @@
+{
+  "name": "@internal/cloudflare-access",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "catalog:",
+    "@internal/typescript-config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

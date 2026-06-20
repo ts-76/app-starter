@@ -1,0 +1,4 @@
+{
+  "extends": "@internal/typescript-config/worker",
+  "include": ["src/**/*.ts"]
+}
