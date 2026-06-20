@@ -35,7 +35,7 @@ If exactly one Cloudflare build token exists, the bootstrap script auto-selects 
 
 If Wrangler is logged in and returns exactly one Cloudflare account, `CLOUDFLARE_ACCOUNT_ID` is auto-detected from `wrangler whoami --json`. If multiple accounts are available, set `CLOUDFLARE_ACCOUNT_ID` or pass `--account-id`.
 
-`DOMAIN` is used for the Worker custom domain. During initial bootstrap, the script runs `wrangler deploy --domain <DOMAIN>`. For Cloudflare Builds, it stores `DOMAIN` as a non-secret build environment variable and uses `pnpm deploy -- --domain $DOMAIN`.
+`DOMAIN` is used for the Worker custom domain. During initial bootstrap, the script runs `wrangler deploy --domain <DOMAIN>`. For Cloudflare Builds, it stores `DOMAIN` as a non-secret build environment variable and uses `pnpm exec wrangler deploy --domain $DOMAIN`.
 
 ## Bootstrap Cloudflare Builds
 

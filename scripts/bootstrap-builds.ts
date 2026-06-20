@@ -77,7 +77,7 @@ function readOptions(): Options {
     buildCommand: parsed.values['build-command'] ?? 'pnpm install --frozen-lockfile && pnpm check',
     deployCommand:
       parsed.values['deploy-command'] ??
-      (domain ? 'pnpm deploy -- --domain $DOMAIN' : 'pnpm deploy'),
+      (domain ? 'pnpm exec wrangler deploy --domain $DOMAIN' : 'pnpm exec wrangler deploy'),
     domain,
     buildTokenUuid:
       parsed.values['build-token-uuid'] ?? process.env.CLOUDFLARE_BUILD_TOKEN_UUID ?? '',
@@ -228,15 +228,15 @@ async function main(): Promise<void> {
 
   if (!worker && options.deployBootstrap) {
     if (options.dryRun) {
-      const domainArgs = options.domain ? ` -- --domain ${options.domain}` : ''
+      const domainArgs = options.domain ? ` --domain ${options.domain}` : ''
       console.log(
-        `[dry-run] would run: pnpm --filter ${options.packageName} run deploy${domainArgs}`,
+        `[dry-run] would run: pnpm --filter ${options.packageName} exec wrangler deploy${domainArgs}`,
       )
     } else {
       console.log('Worker not found. Running explicit bootstrap deploy...')
-      const deployArgs = ['--filter', options.packageName, 'run', 'deploy']
+      const deployArgs = ['--filter', options.packageName, 'exec', 'wrangler', 'deploy']
       if (options.domain) {
-        deployArgs.push('--', '--domain', options.domain)
+        deployArgs.push('--domain', options.domain)
       }
 
       const status = runInherited('pnpm', deployArgs)
