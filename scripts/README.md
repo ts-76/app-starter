@@ -54,6 +54,14 @@ If the Worker does not exist yet, a platform operator can explicitly allow the i
 op run --env-file .env.1password -- pnpm bootstrap:builds -- --deploy
 ```
 
+Preview the initial deploy path without creating resources:
+
+```sh
+op run --env-file .env.1password -- pnpm bootstrap:builds -- --dry-run --deploy --build-token-uuid <uuid>
+```
+
+With Wrangler 4.45 or newer, D1 and R2 resources can be provisioned automatically from binding-only `wrangler.jsonc` entries during the first deploy.
+
 After a trigger exists, push and let Cloudflare Builds deploy:
 
 ```sh
