@@ -16,6 +16,6 @@ catalog:
   'oxfmt': '^0'
   'oxlint': '^1'
   'secretlint': '^12'
-  'typescript': '^5'
+  'typescript': '^6'
   'wrangler': '4.102.0'
   'zod': '^3'
