@@ -190,8 +190,17 @@ async function main(): Promise<void> {
   }
 
   if (!worker?.tag) {
+    if (options.dryRun) {
+      console.log(`[dry-run] Worker ${options.workerName} was not found.`)
+      console.log(`[dry-run] rerun with --deploy to preview the explicit bootstrap deploy path.`)
+      return
+    }
+
     throw new Error(
-      `Worker ${options.workerName} was not found. Run with --deploy for an explicit platform-team bootstrap deploy, or create the Worker first.`,
+      [
+        `Worker ${options.workerName} was not found.`,
+        'Run with --deploy for an explicit platform-team bootstrap deploy, or create the Worker first.',
+      ].join(' '),
     )
   }
 
@@ -298,4 +307,9 @@ async function main(): Promise<void> {
   }
 }
 
-await main()
+try {
+  await main()
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error))
+  process.exitCode = 1
+}
