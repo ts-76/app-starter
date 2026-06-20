@@ -10,7 +10,7 @@ allowBuilds:
 
 catalog:
   '@cloudflare/workers-types': '4.20260617.1'
-  '@types/node': '^24'
+  '@types/node': '^26'
   'hono': '^4'
   'lefthook': '^1'
   'oxfmt': '^0'
