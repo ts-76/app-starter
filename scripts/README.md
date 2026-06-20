@@ -18,6 +18,7 @@ Required for Builds API automation:
 
 ```txt
 CLOUDFLARE_BUILDS_API_TOKEN
+DOMAIN
 ```
 
 `CLOUDFLARE_BUILDS_API_TOKEN` must be a user-scoped Cloudflare API token with Workers Builds Configuration edit access and Workers Scripts read access.
@@ -33,6 +34,8 @@ CLOUDFLARE_ACCOUNT_ID
 If exactly one Cloudflare build token exists, the bootstrap script auto-selects it via the Builds API. If multiple exist, set either `CLOUDFLARE_BUILD_TOKEN_UUID` or `CLOUDFLARE_BUILD_TOKEN_NAME` explicitly.
 
 If Wrangler is logged in and returns exactly one Cloudflare account, `CLOUDFLARE_ACCOUNT_ID` is auto-detected from `wrangler whoami --json`. If multiple accounts are available, set `CLOUDFLARE_ACCOUNT_ID` or pass `--account-id`.
+
+`DOMAIN` is used for the Worker custom domain. During initial bootstrap, the script runs `wrangler deploy --domain <DOMAIN>`. For Cloudflare Builds, it stores `DOMAIN` as a non-secret build environment variable and uses `pnpm deploy -- --domain $DOMAIN`.
 
 ## Bootstrap Cloudflare Builds
 

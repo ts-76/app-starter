@@ -24,6 +24,7 @@ type Options = {
   branch: string
   buildCommand: string
   deployCommand: string
+  domain: string
   buildTokenUuid: string
   buildTokenName: string
   deployBootstrap: boolean
@@ -47,6 +48,7 @@ function readOptions(): Options {
       worker: { type: 'string' },
       root: { type: 'string' },
       branch: { type: 'string', default: 'main' },
+      domain: { type: 'string' },
       'build-command': { type: 'string' },
       'deploy-command': { type: 'string' },
       'build-token-uuid': { type: 'string' },
@@ -60,6 +62,7 @@ function readOptions(): Options {
   })
 
   const app = parsed.values.app ?? 'sales-report'
+  const domain = parsed.values.domain ?? process.env.DOMAIN ?? ''
 
   return {
     app,
@@ -68,7 +71,10 @@ function readOptions(): Options {
     rootDirectory: parsed.values.root ?? `apps/${app}`,
     branch: parsed.values.branch ?? 'main',
     buildCommand: parsed.values['build-command'] ?? 'pnpm install --frozen-lockfile && pnpm check',
-    deployCommand: parsed.values['deploy-command'] ?? 'pnpm deploy',
+    deployCommand:
+      parsed.values['deploy-command'] ??
+      (domain ? 'pnpm deploy -- --domain $DOMAIN' : 'pnpm deploy'),
+    domain,
     buildTokenUuid:
       parsed.values['build-token-uuid'] ?? process.env.CLOUDFLARE_BUILD_TOKEN_UUID ?? '',
     buildTokenName:
@@ -78,6 +84,16 @@ function readOptions(): Options {
     triggerBuild: parsed.values['trigger-build'] ?? false,
     push: parsed.values.push ?? false,
     dryRun: parsed.values['dry-run'] ?? false,
+  }
+}
+
+function validateDomain(domain: string): void {
+  if (!domain) {
+    return
+  }
+
+  if (!/^[a-z0-9.-]+$/i.test(domain) || domain.includes('..')) {
+    throw new Error(`DOMAIN contains unsupported characters: ${domain}`)
   }
 }
 
@@ -115,6 +131,7 @@ function findProductionTrigger(triggers: BuildTrigger[], branch: string): BuildT
 
 async function main(): Promise<void> {
   const options = readOptions()
+  validateDomain(options.domain)
   const accountId = detectCloudflareAccountId({
     explicitAccountId: options.accountId,
     packageName: options.packageName,
@@ -134,6 +151,9 @@ async function main(): Promise<void> {
   console.log(`GitHub repository: ${repo.full_name}`)
   console.log(`Cloudflare Worker: ${options.workerName}`)
   console.log(`Root directory: ${options.rootDirectory}`)
+  if (options.domain) {
+    console.log(`Custom domain: ${options.domain}`)
+  }
 
   await client.verifyToken()
 
@@ -176,10 +196,18 @@ async function main(): Promise<void> {
 
   if (!worker && options.deployBootstrap) {
     if (options.dryRun) {
-      console.log(`[dry-run] would run: pnpm --filter ${options.packageName} run deploy`)
+      const domainArgs = options.domain ? ` -- --domain ${options.domain}` : ''
+      console.log(
+        `[dry-run] would run: pnpm --filter ${options.packageName} run deploy${domainArgs}`,
+      )
     } else {
       console.log('Worker not found. Running explicit bootstrap deploy...')
-      const status = runInherited('pnpm', ['--filter', options.packageName, 'run', 'deploy'])
+      const deployArgs = ['--filter', options.packageName, 'run', 'deploy']
+      if (options.domain) {
+        deployArgs.push('--', '--domain', options.domain)
+      }
+
+      const status = runInherited('pnpm', deployArgs)
       if (status !== 0) {
         throw new Error(`Bootstrap deploy failed with exit code ${status}.`)
       }
@@ -230,8 +258,16 @@ async function main(): Promise<void> {
         path_excludes: ['docs/**'],
         build_caching_enabled: true,
       })
+      if (options.domain) {
+        await client.setEnvironmentVariables(existing.trigger_uuid, {
+          DOMAIN: { value: options.domain, is_secret: false },
+        })
+      }
     } else {
       console.log('[dry-run] would sync existing trigger settings')
+      if (options.domain) {
+        console.log('[dry-run] would set DOMAIN build environment variable')
+      }
     }
 
     if (options.push) {
@@ -297,6 +333,7 @@ async function main(): Promise<void> {
 
   await client.setEnvironmentVariables(trigger.trigger_uuid, {
     NODE_ENV: { value: 'production', is_secret: false },
+    ...(options.domain ? { DOMAIN: { value: options.domain, is_secret: false } } : {}),
   })
 
   console.log(`Created Builds trigger: ${trigger.trigger_uuid}`)
