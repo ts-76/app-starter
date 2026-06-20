@@ -4,7 +4,7 @@ locals {
   sales_report = {
     id            = "sales-report"
     name          = "Sales Report"
-    domain        = "sales-report.internal.example.com"
+    domain        = "sales-report.tslab.app"
     access_group  = "sales"
     allowed_emails = []
   }

@@ -1,8 +1,8 @@
 id: sales-report
 name: Sales Report
 team: sales
-domain: sales-report.internal.example.com
-repo: github.com/example/internal-tools
+domain: sales-report.tslab.app
+repo: github.com/ts-76/internal-app
 root_directory: apps/sales-report
 access_group: sales
 owner_email: sales-owner@example.com
