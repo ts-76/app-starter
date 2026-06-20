@@ -21,7 +21,8 @@
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "secretlint": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "wrangler": "catalog:"
   },
   "packageManager": "pnpm@11.8.0"
 }
