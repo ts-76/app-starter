@@ -89,6 +89,8 @@ op run --env-file .env.1password -- pnpm bootstrap:access -- --allowed-email you
 
 `bootstrap:access` uses `CLOUDFLARE_BUILDS_API_TOKEN` as a temporary operator token. That token needs `Access: Apps and Policies Edit` in addition to the Builds permissions. At least one include rule is required: pass `--allowed-email`, `--allowed-domain`, or `--allow-everyone`.
 
+The script leaves `same_site_cookie_attribute` unset by default. Setting it to `strict` can cause login redirect loops for self-hosted apps because the Access cookie may not be sent after returning from the Cloudflare Access login domain.
+
 Preview without reading the token:
 
 ```sh

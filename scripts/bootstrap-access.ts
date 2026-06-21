@@ -16,6 +16,7 @@ type Options = {
   allowedEmails: string[]
   allowedDomains: string[]
   allowEveryone: boolean
+  sameSiteCookieAttribute: string
   dryRun: boolean
 }
 
@@ -36,6 +37,7 @@ function readOptions(): Options {
       'allowed-email': { type: 'string', multiple: true },
       'allowed-domain': { type: 'string', multiple: true },
       'allow-everyone': { type: 'boolean', default: false },
+      'same-site-cookie-attribute': { type: 'string' },
       'dry-run': { type: 'boolean', default: false },
     },
   })
@@ -53,6 +55,10 @@ function readOptions(): Options {
     allowedEmails: [...envEmails, ...(parsed.values['allowed-email'] ?? [])],
     allowedDomains: [...envDomains, ...(parsed.values['allowed-domain'] ?? [])],
     allowEveryone: parsed.values['allow-everyone'] ?? process.env.ACCESS_ALLOW_EVERYONE === 'true',
+    sameSiteCookieAttribute:
+      parsed.values['same-site-cookie-attribute'] ??
+      process.env.ACCESS_SAME_SITE_COOKIE_ATTRIBUTE ??
+      '',
     dryRun: parsed.values['dry-run'] ?? false,
   }
 }
@@ -125,13 +131,12 @@ function buildIncludeRules(options: Options): AccessRule[] {
 }
 
 function buildApplication(options: Options): AccessApplicationInput {
-  return {
+  const application: AccessApplicationInput = {
     name: options.appName,
     domain: options.domain,
     type: 'self_hosted',
     app_launcher_visible: false,
     http_only_cookie_attribute: true,
-    same_site_cookie_attribute: 'strict',
     session_duration: '24h',
     policies: [
       {
@@ -143,6 +148,12 @@ function buildApplication(options: Options): AccessApplicationInput {
       },
     ],
   }
+
+  if (options.sameSiteCookieAttribute) {
+    application.same_site_cookie_attribute = options.sameSiteCookieAttribute
+  }
+
+  return application
 }
 
 async function main(): Promise<void> {

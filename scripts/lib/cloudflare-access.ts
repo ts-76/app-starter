@@ -38,7 +38,7 @@ export type AccessApplicationInput = {
   type: 'self_hosted'
   app_launcher_visible: boolean
   http_only_cookie_attribute: boolean
-  same_site_cookie_attribute: 'strict'
+  same_site_cookie_attribute?: string
   session_duration: string
   policies: AccessPolicy[]
 }
