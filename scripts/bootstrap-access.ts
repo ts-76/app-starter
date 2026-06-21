@@ -1,0 +1,197 @@
+import { parseArgs } from 'node:util'
+
+import {
+  CloudflareAccessClient,
+  type AccessApplicationInput,
+  type AccessRule,
+} from './lib/cloudflare-access.ts'
+import { detectCloudflareAccountId, getWranglerAccounts } from './lib/wrangler.ts'
+
+type Options = {
+  app: string
+  packageName: string
+  appName: string
+  domain: string
+  accountId: string
+  allowedEmails: string[]
+  allowedDomains: string[]
+  allowEveryone: boolean
+  dryRun: boolean
+}
+
+function readOptions(): Options {
+  const args = process.argv.slice(2)
+  if (args[0] === '--') {
+    args.shift()
+  }
+
+  const parsed = parseArgs({
+    args,
+    options: {
+      app: { type: 'string', default: 'sales-report' },
+      package: { type: 'string' },
+      name: { type: 'string' },
+      domain: { type: 'string' },
+      'account-id': { type: 'string' },
+      'allowed-email': { type: 'string', multiple: true },
+      'allowed-domain': { type: 'string', multiple: true },
+      'allow-everyone': { type: 'boolean', default: false },
+      'dry-run': { type: 'boolean', default: false },
+    },
+  })
+
+  const app = parsed.values.app ?? 'sales-report'
+  const envEmails = splitCsv(process.env.ACCESS_ALLOWED_EMAILS)
+  const envDomains = splitCsv(process.env.ACCESS_ALLOWED_DOMAINS)
+
+  return {
+    app,
+    packageName: parsed.values.package ?? `@internal/${app}`,
+    appName: parsed.values.name ?? 'Sales Report',
+    domain: parsed.values.domain ?? process.env.DOMAIN ?? '',
+    accountId: parsed.values['account-id'] ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? '',
+    allowedEmails: [...envEmails, ...(parsed.values['allowed-email'] ?? [])],
+    allowedDomains: [...envDomains, ...(parsed.values['allowed-domain'] ?? [])],
+    allowEveryone: parsed.values['allow-everyone'] ?? process.env.ACCESS_ALLOW_EVERYONE === 'true',
+    dryRun: parsed.values['dry-run'] ?? false,
+  }
+}
+
+function splitCsv(value: string | undefined): string[] {
+  return (value ?? '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function requireEnv(name: string, fallback?: string): string {
+  const value = process.env[name] ?? fallback
+  if (!value) {
+    throw new Error(
+      `${name} is required. Use 1Password CLI, for example: op run -- pnpm bootstrap:access`,
+    )
+  }
+
+  return value
+}
+
+function validateDomain(domain: string): void {
+  if (!domain) {
+    throw new Error('DOMAIN is required. Set DOMAIN or pass --domain.')
+  }
+
+  if (!/^[a-z0-9.-]+$/i.test(domain) || domain.includes('..')) {
+    throw new Error(`DOMAIN contains unsupported characters: ${domain}`)
+  }
+}
+
+function validateEmail(email: string): void {
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    throw new Error(`Invalid allowed email: ${email}`)
+  }
+}
+
+function validateAllowedDomain(domain: string): void {
+  if (!/^[a-z0-9.-]+$/i.test(domain) || domain.includes('..') || !domain.includes('.')) {
+    throw new Error(`Invalid allowed domain: ${domain}`)
+  }
+}
+
+function buildIncludeRules(options: Options): AccessRule[] {
+  for (const email of options.allowedEmails) {
+    validateEmail(email)
+  }
+
+  for (const domain of options.allowedDomains) {
+    validateAllowedDomain(domain)
+  }
+
+  const include: AccessRule[] = [
+    ...options.allowedEmails.map((email) => ({ email: { email } })),
+    ...options.allowedDomains.map((domain) => ({ email_domain: { domain } })),
+  ]
+
+  if (options.allowEveryone) {
+    include.push({ everyone: {} })
+  }
+
+  if (include.length === 0) {
+    throw new Error(
+      'At least one Access include rule is required. Pass --allowed-email, --allowed-domain, or --allow-everyone.',
+    )
+  }
+
+  return include
+}
+
+function buildApplication(options: Options): AccessApplicationInput {
+  return {
+    name: options.appName,
+    domain: options.domain,
+    type: 'self_hosted',
+    app_launcher_visible: false,
+    http_only_cookie_attribute: true,
+    same_site_cookie_attribute: 'strict',
+    session_duration: '24h',
+    policies: [
+      {
+        name: 'Allow approved users',
+        decision: 'allow',
+        precedence: 1,
+        include: buildIncludeRules(options),
+        session_duration: '24h',
+      },
+    ],
+  }
+}
+
+async function main(): Promise<void> {
+  const options = readOptions()
+  validateDomain(options.domain)
+
+  const accountId = detectCloudflareAccountId({
+    explicitAccountId: options.accountId,
+    packageName: options.packageName,
+  })
+
+  if (!accountId) {
+    const accounts = getWranglerAccounts(options.packageName)
+    throw new Error(
+      `Could not auto-detect Cloudflare account ID because Wrangler returned ${accounts.length} accounts. Set CLOUDFLARE_ACCOUNT_ID or pass --account-id.`,
+    )
+  }
+
+  const input = buildApplication(options)
+
+  console.log(`Cloudflare Access app: ${input.name}`)
+  console.log(`Protected domain: ${input.domain}`)
+
+  if (options.dryRun) {
+    console.log('[dry-run] would upsert Access application with:')
+    console.log(JSON.stringify(input, null, 2))
+    return
+  }
+
+  const apiToken = requireEnv('CLOUDFLARE_BUILDS_API_TOKEN', process.env.CLOUDFLARE_API_TOKEN)
+  const client = new CloudflareAccessClient({ accountId, apiToken })
+
+  await client.verifyToken()
+  const applications = await client.listApplications()
+  const existing = applications.find((app) => app.domain === input.domain)
+
+  if (existing) {
+    const app = await client.updateApplication(existing.id, input)
+    console.log(`Updated Access application: ${app.id}`)
+    return
+  }
+
+  const app = await client.createApplication(input)
+  console.log(`Created Access application: ${app.id}`)
+}
+
+try {
+  await main()
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error))
+  process.exitCode = 1
+}

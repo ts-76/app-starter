@@ -79,6 +79,22 @@ op run --env-file .env.1password -- pnpm bootstrap:builds -- --trigger-build
 
 List recent Cloudflare Builds for the Worker:
 
+## Bootstrap Cloudflare Access
+
+Create or update the Access application and inline allow policy for the protected domain:
+
+```sh
+op run --env-file .env.1password -- pnpm bootstrap:access -- --allowed-email you@example.com
+```
+
+`bootstrap:access` uses `CLOUDFLARE_BUILDS_API_TOKEN` as a temporary operator token. That token needs `Access: Apps and Policies Edit` in addition to the Builds permissions. At least one include rule is required: pass `--allowed-email`, `--allowed-domain`, or `--allow-everyone`.
+
+Preview without reading the token:
+
+```sh
+pnpm bootstrap:access -- --domain sales-report.tslab.app --allowed-email you@example.com --dry-run
+```
+
 ```sh
 op run --env-file .env.1password -- pnpm bootstrap:builds -- --list-builds --build-token-uuid <uuid>
 ```

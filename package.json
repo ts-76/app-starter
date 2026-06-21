@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "bootstrap:access": "node --experimental-strip-types scripts/bootstrap-access.ts",
     "bootstrap:builds": "node --experimental-strip-types scripts/bootstrap-builds.ts",
     "doctor": "node --experimental-strip-types scripts/doctor.ts",
     "lint": "oxlint .",
