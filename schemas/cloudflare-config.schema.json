@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://internal-tools.local/schemas/cloudflare-config.schema.json",
+  "title": "Cloudflare production configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["projectId", "accountId", "baseDomain", "environment", "apps"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "projectId": {
+      "$ref": "#/$defs/id"
+    },
+    "accountId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "baseDomain": {
+      "type": "string",
+      "minLength": 3
+    },
+    "environment": {
+      "const": "production"
+    },
+    "apps": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["accessList"],
+        "properties": {
+          "accessList": {
+            "$ref": "#/$defs/id"
+          },
+          "hostname": {
+            "type": "string",
+            "minLength": 3
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z](?:[a-z0-9-]*[a-z0-9])?$"
+    }
+  }
+}

@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { parseArgs } from 'node:util'
 
 import {
@@ -5,11 +6,12 @@ import {
   type AccessApplicationInput,
   type AccessRule,
 } from './lib/cloudflare-access.ts'
-import { detectCloudflareAccountId, getWranglerAccounts } from './lib/wrangler.ts'
+import { loadProjectConfig } from './lib/project-config.ts'
+
+const repoRoot = path.resolve(import.meta.dirname, '..')
 
 type Options = {
   app: string
-  packageName: string
   appName: string
   domain: string
   accountId: string
@@ -30,7 +32,6 @@ function readOptions(): Options {
     args,
     options: {
       app: { type: 'string', default: 'sales-report' },
-      package: { type: 'string' },
       name: { type: 'string' },
       domain: { type: 'string' },
       'account-id': { type: 'string' },
@@ -48,7 +49,6 @@ function readOptions(): Options {
 
   return {
     app,
-    packageName: parsed.values.package ?? `@internal/${app}`,
     appName: parsed.values.name ?? 'Sales Report',
     domain: parsed.values.domain ?? process.env.DOMAIN ?? '',
     accountId: parsed.values['account-id'] ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? '',
@@ -157,18 +157,25 @@ function buildApplication(options: Options): AccessApplicationInput {
 }
 
 async function main(): Promise<void> {
+  console.warn(
+    [
+      '注意: bootstrap:access は非常用ツールです。',
+      '通常のAccess設定は config/access/*.csv と config/cloudflare/production.json を編集し、',
+      'pnpm infra:plan で確認してから明示承認のもとで反映します (ops/terraform/README.md 参照)。',
+      '',
+    ].join('\n'),
+  )
+
   const options = readOptions()
+  const config = loadProjectConfig(repoRoot)
+  const configuredApp = config.apps[options.app]
+  options.domain ||= configuredApp?.hostname ?? ''
   validateDomain(options.domain)
 
-  const accountId = detectCloudflareAccountId({
-    explicitAccountId: options.accountId,
-    packageName: options.packageName,
-  })
-
-  if (!accountId) {
-    const accounts = getWranglerAccounts(options.packageName)
+  const accountId = options.accountId || config.accountId
+  if (options.accountId && options.accountId !== config.accountId) {
     throw new Error(
-      `Could not auto-detect Cloudflare account ID because Wrangler returned ${accounts.length} accounts. Set CLOUDFLARE_ACCOUNT_ID or pass --account-id.`,
+      'The requested Cloudflare account ID does not match config/cloudflare/production.json.',
     )
   }
 
@@ -183,7 +190,7 @@ async function main(): Promise<void> {
     return
   }
 
-  const apiToken = requireEnv('CLOUDFLARE_BUILDS_API_TOKEN', process.env.CLOUDFLARE_API_TOKEN)
+  const apiToken = requireEnv('CLOUDFLARE_TERRAFORM_API_TOKEN', process.env.CLOUDFLARE_API_TOKEN)
   const client = new CloudflareAccessClient({ accountId, apiToken })
 
   await client.verifyToken()

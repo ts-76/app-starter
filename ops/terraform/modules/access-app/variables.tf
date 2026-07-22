@@ -13,8 +13,12 @@ variable "app_domain" {
   type        = string
 }
 
-variable "allowed_emails" {
-  description = "Email addresses allowed to access the application."
-  type        = list(string)
-  default     = []
+variable "policy_name" {
+  description = "Cloudflare Access policy name."
+  type        = string
+}
+
+variable "email_list_id" {
+  description = "Reusable Cloudflare Zero Trust EMAIL list ID."
+  type        = string
 }

@@ -1,6 +1,10 @@
+import path from 'node:path'
+
 import { run, mask } from './lib/cli.ts'
-import { CloudflareBuildsClient } from './lib/cloudflare-builds.ts'
-import { detectCloudflareAccountId, getWranglerAccounts } from './lib/wrangler.ts'
+import { loadProjectConfig } from './lib/project-config.ts'
+import { getWranglerAccounts } from './lib/wrangler.ts'
+
+const repoRoot = path.resolve(import.meta.dirname, '..')
 
 type Check = {
   name: string
@@ -24,7 +28,21 @@ function commandVersion(command: string, args: string[] = ['--version']): string
   return result.stdout.trim() || result.stderr.trim()
 }
 
+function hasGitHubName(result: ReturnType<typeof run>, name: string): boolean {
+  if (result.status !== 0) {
+    return false
+  }
+
+  try {
+    const items = JSON.parse(result.stdout) as Array<{ name?: string }>
+    return items.some((item) => item.name === name)
+  } catch {
+    return false
+  }
+}
+
 async function main(): Promise<void> {
+  let projectConfig: ReturnType<typeof loadProjectConfig> | null = null
   const nodeVersion = commandVersion('node')
   record('node', Boolean(nodeVersion), nodeVersion ?? 'node command not found')
 
@@ -49,6 +67,26 @@ async function main(): Promise<void> {
 
   const opVersion = commandVersion('op')
   record('1password-cli', Boolean(opVersion), opVersion ?? 'optional: op command not found', false)
+
+  const terraformVersion = commandVersion('mise', ['exec', '--', 'terraform', 'version'])
+  record(
+    'terraform',
+    Boolean(terraformVersion),
+    terraformVersion?.split('\n')[0] ?? 'infra反映前にmise installを実行',
+    false,
+  )
+
+  try {
+    const config = loadProjectConfig(repoRoot)
+    projectConfig = config
+    record(
+      'project-config',
+      true,
+      `${Object.keys(config.apps).length} apps / ${Object.keys(config.accessLists).length} access lists`,
+    )
+  } catch (error) {
+    record('project-config', false, error instanceof Error ? error.message : String(error))
+  }
 
   const gitRoot = run('git', ['rev-parse', '--show-toplevel'])
   record(
@@ -85,55 +123,37 @@ async function main(): Promise<void> {
   )
 
   const wranglerAccounts = getWranglerAccounts()
-  const detectedAccountId = detectCloudflareAccountId({
-    explicitAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
-  })
-  const accountId = detectedAccountId ?? undefined
-  const apiToken = process.env.CLOUDFLARE_BUILDS_API_TOKEN ?? process.env.CLOUDFLARE_API_TOKEN
-  const buildTokenUuid = process.env.CLOUDFLARE_BUILD_TOKEN_UUID
+  const accountId = projectConfig?.accountId
+  const accountMatches = Boolean(
+    accountId && wranglerAccounts.some((account) => account.id === accountId),
+  )
+  const terraformToken = process.env.CLOUDFLARE_TERRAFORM_API_TOKEN
+  const deploySecrets = run('gh', ['secret', 'list', '--env', 'production', '--json', 'name'])
 
   record(
     'cloudflare-account-id',
-    Boolean(accountId),
+    accountMatches,
     accountId
-      ? process.env.CLOUDFLARE_ACCOUNT_ID
-        ? `from env ${mask(accountId)}`
-        : `from wrangler ${mask(accountId)}`
-      : `${wranglerAccounts.length} Wrangler accounts found; set CLOUDFLARE_ACCOUNT_ID`,
+      ? wranglerAccounts.some((account) => account.id === accountId)
+        ? `configとWranglerが一致 ${mask(accountId)}`
+        : `configのAccount IDがWranglerの${wranglerAccounts.length} accountsにありません`
+      : 'config/cloudflare/production.jsonにaccountIdを設定',
   )
   record(
-    'env:CLOUDFLARE_BUILDS_API_TOKEN',
-    Boolean(apiToken),
-    apiToken ? `present ${mask(apiToken)}` : 'missing',
+    'github:CLOUDFLARE_DEPLOY_API_TOKEN',
+    hasGitHubName(deploySecrets, 'CLOUDFLARE_DEPLOY_API_TOKEN'),
+    hasGitHubName(deploySecrets, 'CLOUDFLARE_DEPLOY_API_TOKEN')
+      ? 'production environment secret is configured'
+      : 'platform setup: add the account-owned deploy token to GitHub Environment production',
   )
   record(
-    'env:CLOUDFLARE_BUILD_TOKEN_UUID',
-    true,
-    buildTokenUuid ? mask(buildTokenUuid) : 'optional if exactly one Cloudflare build token exists',
+    'env:CLOUDFLARE_TERRAFORM_API_TOKEN',
+    Boolean(terraformToken),
+    terraformToken
+      ? `present ${mask(terraformToken)}`
+      : 'Custom Domain・Accessを明示反映するときだけ必要',
     false,
   )
-
-  if (accountId && apiToken) {
-    try {
-      const client = new CloudflareBuildsClient({ accountId, apiToken })
-      await client.verifyToken()
-      record('cloudflare-api-token', true, 'token verified')
-      if (!buildTokenUuid) {
-        const buildTokens = await client.listBuildTokens()
-        record(
-          'cloudflare-build-token',
-          buildTokens.length === 1,
-          buildTokens.length === 1
-            ? `will auto-select ${buildTokens[0]?.build_token_name ?? buildTokens[0]?.build_token_uuid}`
-            : `${buildTokens.length} build tokens found; set CLOUDFLARE_BUILD_TOKEN_UUID`,
-          buildTokens.length !== 1,
-        )
-      }
-    } catch (error) {
-      record('cloudflare-api-token', false, error instanceof Error ? error.message : String(error))
-    }
-  }
-
   const width = Math.max(...checks.map((check) => check.name.length), 1)
   for (const check of checks) {
     const marker = check.ok ? 'ok' : 'missing'
