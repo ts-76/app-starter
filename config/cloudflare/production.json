@@ -1,0 +1,12 @@
+{
+  "$schema": "../../schemas/cloudflare-config.schema.json",
+  "projectId": "internal-tools",
+  "accountId": "934c6255d681d05e1fa9903560de8a59",
+  "baseDomain": "tslab.app",
+  "environment": "production",
+  "apps": {
+    "sales-report": {
+      "accessList": "sales"
+    }
+  }
+}

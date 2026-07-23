@@ -8,24 +8,8 @@
 pnpm --filter @internal/sales-report dev
 ```
 
-## Cloudflare Workers Builds
+## 本番反映
 
-- Root directory: `apps/sales-report`
-- Build command: `pnpm install --frozen-lockfile && pnpm check`
-- Deploy command: `pnpm deploy`
-- Production branch: `main`
+PRをmainへマージすると、GitHub Actionsが自動デプロイします。ローカルからの直接デプロイは禁止です。
 
-## Build watch paths
-
-Include:
-
-- `apps/sales-report/**`
-- `packages/cloudflare-access/**`
-- `packages/ui/**`
-- `packages/config/**`
-- `pnpm-lock.yaml`
-- `pnpm-workspace.yaml`
-
-Exclude:
-
-- `docs/**`
+デプロイ対象とcustom domainは`config/cloudflare/production.json`の登録内容から自動的に解決されます。閲覧できるユーザーは`config/access/sales.csv`で管理します。

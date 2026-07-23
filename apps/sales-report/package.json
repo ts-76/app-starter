@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "wrangler dev",
     "typecheck": "tsc --noEmit",
-    "check": "pnpm typecheck",
-    "deploy": "wrangler deploy"
+    "check": "pnpm typecheck"
   },
   "dependencies": {
     "@internal/cloudflare-access": "workspace:*",

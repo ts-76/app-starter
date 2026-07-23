@@ -3,16 +3,15 @@ resource "cloudflare_zero_trust_access_application" "this" {
   name       = var.app_name
   domain     = var.app_domain
   type       = "self_hosted"
-}
 
-resource "cloudflare_zero_trust_access_policy" "allow_team" {
-  account_id     = var.account_id
-  application_id = cloudflare_zero_trust_access_application.this.id
-  name           = "Allow approved users"
-  decision       = "allow"
-  precedence     = 1
-
-  include {
-    email = var.allowed_emails
-  }
+  policies = [{
+    name       = var.policy_name
+    decision   = "allow"
+    precedence = 1
+    include = [{
+      email_list = {
+        id = var.email_list_id
+      }
+    }]
+  }]
 }
