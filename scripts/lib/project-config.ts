@@ -20,11 +20,16 @@ export type ProjectApp = {
   accessList: string
 }
 
+export type DeploymentMode = 'cloudflare-builds' | 'github-actions'
+
 export type ProjectConfig = {
   projectId: string
   accountId: string
   baseDomain: string
   environment: 'production'
+  deployment: {
+    mode: DeploymentMode
+  }
   apps: Record<string, ProjectApp>
   accessLists: Record<string, AccessMember[]>
   warnings: string[]
@@ -207,7 +212,7 @@ export function loadProjectConfig(repoRoot: string): ProjectConfig {
   const root = assertObject(parsed, relativeConfigFile)
   assertAllowedKeys(
     root,
-    ['$schema', 'projectId', 'accountId', 'baseDomain', 'environment', 'apps'],
+    ['$schema', 'projectId', 'accountId', 'baseDomain', 'environment', 'deployment', 'apps'],
     relativeConfigFile,
   )
 
@@ -223,6 +228,15 @@ export function loadProjectConfig(repoRoot: string): ProjectConfig {
   const environment = requireString(root, 'environment', relativeConfigFile)
   if (environment !== 'production') {
     fail(`${relativeConfigFile}.environment は production にしてください。`)
+  }
+
+  const rawDeployment = assertObject(root.deployment, `${relativeConfigFile}.deployment`)
+  assertAllowedKeys(rawDeployment, ['mode'], `${relativeConfigFile}.deployment`)
+  const deploymentMode = requireString(rawDeployment, 'mode', `${relativeConfigFile}.deployment`)
+  if (deploymentMode !== 'cloudflare-builds' && deploymentMode !== 'github-actions') {
+    fail(
+      `${relativeConfigFile}.deployment.mode は cloudflare-builds または github-actions にしてください。`,
+    )
   }
 
   const rawApps = assertObject(root.apps, `${relativeConfigFile}.apps`)
@@ -298,7 +312,16 @@ export function loadProjectConfig(repoRoot: string): ProjectConfig {
     }
   }
 
-  return { projectId, accountId, baseDomain, environment, apps, accessLists, warnings }
+  return {
+    projectId,
+    accountId,
+    baseDomain,
+    environment,
+    deployment: { mode: deploymentMode },
+    apps,
+    accessLists,
+    warnings,
+  }
 }
 
 export function toTerraformVariables(config: ProjectConfig): JsonObject {

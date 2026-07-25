@@ -24,7 +24,7 @@ pnpm --filter @internal/sales-report dev
 pnpm new:app <app-id> --team <team> --owner-email <email>
 ```
 
-アプリ本体の雛形に加え、`config/cloudflare/production.json` のアプリ登録と `config/access/<team>.csv` の初期ユーザーがまとめて生成されます。PRをmainへマージすると、GitHub ActionsがWorker本体をデプロイします。新規アプリの初回だけ、その成功後に`infra:apply`でCustom DomainとAccessを接続します。
+アプリ本体の雛形に加え、`config/cloudflare/production.json` のアプリ登録と `config/access/<team>.csv` の初期ユーザーがまとめて生成されます。PRをmainへマージすると、設定したデプロイ方式でWorker本体を反映します。新規アプリの初回だけ、その成功後に`infra:apply`でCustom DomainとAccessを接続します。
 
 アクセスできる人を増やすときは、対応する `config/access/*.csv` にメールアドレスを追加します。DNS・Access設定は `pnpm infra:plan` で確認し、利用者の明示承認後に `pnpm infra:apply -- --yes` で反映します。Terraformコードを編集する必要はありません。
 
@@ -37,7 +37,7 @@ pnpm new:app <app-id> --team <team> --owner-email <email>
 - 「〇〇さんがアプリを見られるようにして」→ Access ListのCSVを更新し、設定を検証します
 - 「ドメインと閲覧制限を反映して」→ Terraform planを表示し、確認後に固定手順で反映します
 
-Workerの本番デプロイはGitHub Actionsだけが行います。DNS・Accessは、直接のTerraformコマンドを禁止し、入力検証・削除防止・state確認を備えた `infra:*` コマンドだけを利用します。
+Workerの本番デプロイは`config/cloudflare/production.json`の`deployment.mode`で、Cloudflare Workers BuildsまたはGitHub Actionsのどちらか一方を選びます。両方の実行経路には排他ガードがあり、選択されていない経路はデプロイせず正常終了します。DNS・Accessは、直接のTerraformコマンドを禁止し、入力検証・削除防止・state確認を備えた `infra:*` コマンドだけを利用します。
 
 ## チェック
 
@@ -48,6 +48,6 @@ pnpm infra:check
 
 ## 本番反映
 
-Worker本体は GitHub Actions が `main` へのマージを検知して自動反映します。ローカルや AI エージェントからの直接デプロイは禁止です。Custom Domain・DNS・Accessは、明示依頼を受けたAIエージェントが検証付きの`infra:*`経由で反映します。
+Worker本体は、Cloudflare Workers BuildsまたはGitHub Actionsが`main`へのマージを検知して自動反映します。ローカルやAIエージェントからの直接デプロイは禁止です。Custom Domain・DNS・Accessは、明示依頼を受けたAIエージェントが検証付きの`infra:*`経由で反映します。
 
-デプロイの成功・失敗はGitHubの `Production Deploy` Workflowで確認できます。認証には、GitHub Environment `production`へ保存したCloudflareのアカウント所有トークンを使用します。初期設定とWorkers Buildsからの移行手順は[scripts/README.md](scripts/README.md)を参照してください。
+`cloudflare-builds`ではCloudflare DashboardとGitHubのCheck、`github-actions`ではGitHubの`Production Deploy` Workflowで成功・失敗を確認します。初期設定、認証、方式の切替手順は[scripts/README.md](scripts/README.md)を参照してください。

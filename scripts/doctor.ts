@@ -82,7 +82,7 @@ async function main(): Promise<void> {
     record(
       'project-config',
       true,
-      `${Object.keys(config.apps).length} apps / ${Object.keys(config.accessLists).length} access lists`,
+      `${Object.keys(config.apps).length} apps / ${Object.keys(config.accessLists).length} access lists / deploy=${config.deployment.mode}`,
     )
   } catch (error) {
     record('project-config', false, error instanceof Error ? error.message : String(error))
@@ -128,7 +128,14 @@ async function main(): Promise<void> {
     accountId && wranglerAccounts.some((account) => account.id === accountId),
   )
   const terraformToken = process.env.CLOUDFLARE_TERRAFORM_API_TOKEN
-  const deploySecrets = run('gh', ['secret', 'list', '--env', 'production', '--json', 'name'])
+  const deploymentMode = projectConfig?.deployment.mode
+  const deploySecrets =
+    deploymentMode === 'github-actions'
+      ? run('gh', ['secret', 'list', '--env', 'production', '--json', 'name'])
+      : null
+  const hasDeploySecret = Boolean(
+    deploySecrets && hasGitHubName(deploySecrets, 'CLOUDFLARE_DEPLOY_API_TOKEN'),
+  )
 
   record(
     'cloudflare-account-id',
@@ -141,10 +148,21 @@ async function main(): Promise<void> {
   )
   record(
     'github:CLOUDFLARE_DEPLOY_API_TOKEN',
-    hasGitHubName(deploySecrets, 'CLOUDFLARE_DEPLOY_API_TOKEN'),
-    hasGitHubName(deploySecrets, 'CLOUDFLARE_DEPLOY_API_TOKEN')
-      ? 'production environment secret is configured'
-      : 'platform setup: add the account-owned deploy token to GitHub Environment production',
+    deploymentMode !== 'github-actions' || hasDeploySecret,
+    deploymentMode === 'github-actions'
+      ? hasDeploySecret
+        ? 'production environment secret is configured'
+        : 'github-actions mode: add the account-owned deploy token to GitHub Environment production'
+      : 'cloudflare-builds modeでは不要',
+    deploymentMode === 'github-actions',
+  )
+  record(
+    'cloudflare-workers-builds',
+    true,
+    deploymentMode === 'cloudflare-builds'
+      ? '対象WorkerごとにGit接続とdeploy:builds commandをCloudflare側で確認'
+      : 'github-actions modeでは不要',
+    false,
   )
   record(
     'env:CLOUDFLARE_TERRAFORM_API_TOKEN',
