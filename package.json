@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "bootstrap:access": "node --experimental-strip-types scripts/bootstrap-access.ts",
-    "deploy:ci": "node --experimental-strip-types scripts/deploy-ci.ts",
+    "deploy:ci": "node --experimental-strip-types scripts/deploy.ts --source github-actions",
+    "deploy:builds": "node --experimental-strip-types scripts/deploy.ts --source cloudflare-builds",
     "doctor": "node --experimental-strip-types scripts/doctor.ts",
     "infra:check": "node --experimental-strip-types scripts/infra-config.ts",
     "infra:plan": "op run --env-file .env.terraform.1password -- mise exec -- node --experimental-strip-types scripts/infra.ts plan",

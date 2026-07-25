@@ -276,21 +276,26 @@ Cloudflare Accessで入口を守っていても、アプリ側でユーザー情
 
 ---
 
-## 7. GitHub Actionsからのデプロイ
+## 7. 選択可能な本番デプロイ
 
-本番デプロイは`.github/workflows/deploy.yml`が担当する。`main`へのpushを検知し、品質チェック後に登録済みのproduction Workerを順番にデプロイする。
+本番デプロイは`config/cloudflare/production.json`の`deployment.mode`で、Cloudflare Workers BuildsまたはGitHub Actionsの一方を選択する。どちらも`main`へのpushを検知し、品質チェック後にproduction Workerをデプロイする。
 
-デプロイ対象は`config/cloudflare/production.json`を入力にする。新しいアプリを登録すると自動的に対象へ入るため、アプリごとのWorkflowやCloudflare Git接続は追加しない。
+両方の実行経路はリポジトリに残すが、デプロイスクリプトが設定と実行元を照合するため、同時にはデプロイしない。
 
 ```txt
-GitHub Environment: production
-Secret: CLOUDFLARE_DEPLOY_API_TOKEN（account-owned）
-Account ID: config/cloudflare/production.json
-Deploy: pnpm deploy:ci
-Production branch: main
+cloudflare-builds:
+  GitHub App: 対象リポジトリだけを承認
+  Deploy: pnpm deploy:builds -- --app <app-id>
+  Production branch: main
+
+github-actions:
+  GitHub Environment: production
+  Secret: CLOUDFLARE_DEPLOY_API_TOKEN（account-owned）
+  Deploy: pnpm deploy:ci
+  Production branch: main
 ```
 
-全アプリをデプロイすることで、共通パッケージやロックファイルの変更も反映漏れを起こさない。アプリ数が増えて実行時間が問題になった段階で、変更検出を追加する。
+GitHub Actionsは登録済みアプリをまとめて反映する。Workers Buildsは対象Workerごとに同じリポジトリを接続する。どちらも共通configを読み、選択されていない経路は正常終了でスキップする。
 
 ---
 
@@ -410,6 +415,9 @@ Cloudflareの画面で個別にAccessを作るのではなく、リポジトリ�
   "accountId": "0123456789abcdef0123456789abcdef",
   "baseDomain": "internal.example.com",
   "environment": "production",
+  "deployment": {
+    "mode": "cloudflare-builds"
+  },
   "apps": {
     "sales-report": {
       "accessList": "sales"
@@ -426,7 +434,7 @@ Cloudflareの画面で個別にAccessを作るのではなく、リポジトリ�
 1. 利用者とAIエージェントが apps/<app-name> にHonoアプリを作る
 2. config/cloudflare/production.jsonへアプリを登録する
 3. config/access/<list-id>.csvへ閲覧ユーザーを登録する
-4. Pull Requestを出し、mainマージでGitHub ActionsからWorkerをデプロイする
+4. Pull Requestを出し、mainマージで選択中のCI/CDからWorkerをデプロイする
 5. pnpm infra:planでDNS・Accessの差分を確認する
 6. 利用者が明示承認し、pnpm infra:apply -- --yesで反映する
 ```
@@ -800,7 +808,7 @@ Claude Code hooksで止めたい操作。
 ```txt
 - ローカルに本番デプロイ用APIトークンを置かない
 - AIエージェントにWorkerの直接デプロイ権限を渡さない
-- 本番はGitHub Actionsからだけ出す
+- 本番はmainに接続したWorkers BuildsまたはGitHub Actionsからだけ出す
 - AccessとDNSは検証付きinfraコマンドからだけ反映する
 ```
 
@@ -841,8 +849,8 @@ Cloudflare Access、DNS、Terraform、共通認証パッケージを変更する
 2. workers.dev や未保護URLがないか確認
 3. wrangler.jsonc をリポジトリに追加する
 4. Worker名、binding名、D1 database_id を現状に合わせる
-5. GitHub Environmentへデプロイ用アカウント所有トークンを登録する
-6. GitHub Actionsからmainを本番へ出せる状態にする
+5. Workers BuildsまたはGitHub Actionsのデプロイ方式を選ぶ
+6. 選択した方式からmainを本番へ出せる状態にする
 7. AccessとDNSをTerraform管理に寄せる
 8. Claude Code hooksを入れる
 9. main保護とCODEOWNERSを入れる
@@ -870,8 +878,8 @@ Cloudflare Access、DNS、Terraform、共通認証パッケージを変更する
 - apps/* のHonoアプリ構成
 - packages/cloudflare-access
 - wrangler.jsonc
-- GitHub ActionsのProduction Deploy
-- Cloudflareのデプロイ専用account-owned token
+- `deployment.mode`による排他的なProduction Deploy
+- Workers BuildsのGit接続、またはCloudflareのデプロイ専用account-owned token
 - main保護
 - Rulesetsで必須checkを指定
 - Claude Code hooks
@@ -913,10 +921,11 @@ GitHub
   → DependabotとSecret scanningを有効化する
   → checksが通ったものだけmerge
 
-GitHub Actions
+Production Deploy
+  → Workers BuildsまたはGitHub Actionsをconfigで選択
   → mainからWorkerへ自動デプロイ
-  → アカウント所有トークンをproduction Environmentに保管
-  → 登録済みproductionアプリをまとめて反映
+  → 選択されていない経路はデプロイをスキップ
+  → GitHub Actionsの場合だけアカウント所有トークンをEnvironmentに保管
 
 Cloudflare Access
   → custom domainを保護
@@ -934,7 +943,7 @@ Terraform
 
 ## 18. 判断
 
-今回の前提では、**モノレポ + pnpm + Hono + GitHub Actions + Cloudflare Access + Terraform** がよい。
+今回の前提では、**モノレポ + pnpm + Hono + 選択可能なCI/CD + Cloudflare Access + Terraform** がよい。
 
 ただし、Terraformコードは通常の編集対象にしない。利用者とAIエージェントは検証済みのconfigと安全なラッパーコマンドを使う。
 
@@ -945,7 +954,7 @@ Terraform
 | アプリ実装 | Hono |
 | リポジトリ | pnpm workspace のモノレポ |
 | UI | Hono JSX、必要に応じて軽いクライアントJS |
-| デプロイ | GitHub Actions + Wrangler |
+| デプロイ | Cloudflare Workers BuildsまたはGitHub Actions + Wrangler |
 | 新規作成導線 | Deploy to Cloudflare |
 | 認証入口 | Cloudflare Access |
 | Access/DNS管理 | Terraform |
@@ -978,6 +987,9 @@ Terraform
 
 - Cloudflare WorkersをGitHub Actionsからデプロイする。
   https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/
+
+- Cloudflare Workers BuildsでGitリポジトリからデプロイする。
+  https://developers.cloudflare.com/workers/ci-cd/builds/
 
 - Cloudflare Workers: bindings。  
   https://developers.cloudflare.com/workers/runtime-apis/bindings/

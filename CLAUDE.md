@@ -1,6 +1,6 @@
 # AIエージェント作業ルール
 
-このリポジトリは、非エンジニアがAIエージェントと一緒に社内アプリを開発するための基盤です。Workerの本番反映は必ず「PR → 人間のレビュー → mainマージ → GitHub Actions」の経路で行います。DNS・Accessは検証付きの`infra:*`コマンドだけを使い、利用者の明示承認後に反映します。
+このリポジトリは、非エンジニアがAIエージェントと一緒に社内アプリを開発するための基盤です。Workerの本番反映は必ず「PR → 人間のレビュー → mainマージ → 設定済みのCI/CD」の経路で行います。CI/CDは`config/cloudflare/production.json`の`deployment.mode`でCloudflare Workers BuildsまたはGitHub Actionsの一方を選びます。DNS・Accessは検証付きの`infra:*`コマンドだけを使い、利用者の明示承認後に反映します。
 
 ## 基本フロー(常にこの手順に従う)
 
@@ -8,9 +8,9 @@
 2. `apps/<app-name>/src` 配下を実装・修正する
 3. `pnpm check` で品質チェックを通す
 4. `git push origin <作業ブランチ>` して `gh pr create` でPRを作成する
-5. mainへのマージは人間がレビューして行う。マージされると GitHub Actions が自動でデプロイする
+5. mainへのマージは人間がレビューして行う。マージされると設定済みのCI/CDが自動でデプロイする
 
-新規アプリでは、GitHub ActionsによるWorker初回デプロイの成功後、利用者の明示依頼を受けて`pnpm infra:plan`と`pnpm infra:apply -- --yes`を実行し、Custom Domain・DNS・Accessを接続する。
+新規アプリでは、選択中のCI/CDによるWorker初回デプロイの成功後、利用者の明示依頼を受けて`pnpm infra:plan`と`pnpm infra:apply -- --yes`を実行し、Custom Domain・DNS・Accessを接続する。
 
 ## 新しいアプリを作るとき
 
@@ -35,9 +35,10 @@ pnpm new:app <app-id> --team <team> --owner-email <email>
 
 - 秘密の値は絶対に表示しない。設定の存在確認は `pnpm doctor` を使う(値はマスクされる)
 - 実行時に秘密が必要なコマンドは `op run --env-file <役割別の.env.*.1password> -- <command>` の形で実行する
-- デプロイ状況は `gh run list --workflow deploy.yml` で確認する。Cloudflare APIトークンは不要
+- `github-actions`のデプロイ状況は`gh run list --workflow deploy.yml`、`cloudflare-builds`はCloudflare DashboardとGitHub Checkで確認する
 - `.env.terraform.1password`はAccess・DNSの変更権限を参照するため、人間から明示的に頼まれたplan/applyだけで使う
-- `CLOUDFLARE_DEPLOY_API_TOKEN`はGitHub Environmentだけに保存し、ローカルへ取得しない
+- `CLOUDFLARE_DEPLOY_API_TOKEN`は`github-actions`でだけ使用し、GitHub Environment以外へ保存しない
+- Workers Builds APIの設定用ユーザースコープトークンは1Passwordから一時注入し、値をリポジトリやログへ残さない
 
 ## 利用者の明示確認が必要な変更
 

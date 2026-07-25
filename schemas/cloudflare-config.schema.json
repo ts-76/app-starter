@@ -4,7 +4,7 @@
   "title": "Cloudflare production configuration",
   "type": "object",
   "additionalProperties": false,
-  "required": ["projectId", "accountId", "baseDomain", "environment", "apps"],
+  "required": ["projectId", "accountId", "baseDomain", "environment", "deployment", "apps"],
   "properties": {
     "$schema": {
       "type": "string"
@@ -22,6 +22,16 @@
     },
     "environment": {
       "const": "production"
+    },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "enum": ["cloudflare-builds", "github-actions"]
+        }
+      }
     },
     "apps": {
       "type": "object",
