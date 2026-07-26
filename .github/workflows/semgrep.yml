@@ -1,0 +1,43 @@
+name: Semgrep
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Security diff
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:1.171.0@sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8
+    steps:
+      - name: Check out project
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Check out pinned Semgrep Community Rules
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          repository: semgrep/semgrep-rules
+          ref: 81634cfc9e68dc5f238a8062909a60ba34500648
+          path: .semgrep-community-rules
+
+      - name: Select high-confidence security rules
+        run: >-
+          python .github/scripts/select-semgrep-rules.py
+          .semgrep-community-rules
+          /tmp/semgrep-ci-rules.yml
+
+      - name: Scan pull request changes
+        run: >-
+          semgrep scan
+          --config=/tmp/semgrep-ci-rules.yml
+          --baseline-commit=${{ github.event.pull_request.base.sha }}
+          --exclude=.semgrep-community-rules
+          --metrics=off
+          --error
