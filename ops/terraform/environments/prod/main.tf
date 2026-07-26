@@ -1,28 +1,89 @@
 provider "cloudflare" {}
 
-locals {
-  sales_report = {
-    id            = "sales-report"
-    name          = "Sales Report"
-    domain        = "sales-report.internal.example.com"
-    access_group  = "sales"
-    allowed_emails = []
+data "cloudflare_zones" "production" {
+  account = {
+    id = var.account_id
+  }
+  name      = var.base_domain
+  status    = "active"
+  max_items = 2
+}
+
+check "single_production_zone" {
+  assert {
+    condition     = length(data.cloudflare_zones.production.result) == 1
+    error_message = "base_domain must match exactly one active Cloudflare zone."
   }
 }
 
-module "sales_report_access" {
-  source = "../../modules/access-app"
-
-  account_id     = var.account_id
-  app_name       = local.sales_report.name
-  app_domain     = local.sales_report.domain
-  allowed_emails = local.sales_report.allowed_emails
+check "known_access_lists" {
+  assert {
+    condition     = alltrue([for app in values(var.apps) : contains(keys(var.access_lists), app.access_list)])
+    error_message = "Every app.access_list must refer to an access_lists entry."
+  }
 }
 
-module "sales_report_dns" {
-  source = "../../modules/dns-record"
+locals {
+  zone_id = length(data.cloudflare_zones.production.result) == 1 ? data.cloudflare_zones.production.result[0].id : ""
+}
 
-  zone_id = var.zone_id
-  name    = "sales-report"
-  content = "sales-report.workers.dev"
+resource "cloudflare_zero_trust_organization" "this" {
+  account_id       = var.account_id
+  auth_domain      = var.access_auth_domain
+  name             = var.project_id
+  session_duration = "24h"
+}
+
+resource "cloudflare_zero_trust_access_identity_provider" "one_time_pin" {
+  account_id = var.account_id
+  name       = "${var.project_id}-email-one-time-pin"
+  type       = "onetimepin"
+  config     = {}
+
+  depends_on = [cloudflare_zero_trust_organization.this]
+}
+
+resource "cloudflare_zero_trust_list" "email" {
+  for_each = var.access_lists
+
+  account_id  = var.account_id
+  name        = "${var.project_id}-${each.key}-emails"
+  description = "Managed by Terraform for ${var.project_id}."
+  type        = "EMAIL"
+  items       = each.value
+
+  depends_on = [
+    cloudflare_zero_trust_organization.this,
+    cloudflare_zero_trust_access_identity_provider.one_time_pin,
+  ]
+}
+
+module "access" {
+  source   = "../../modules/access-app"
+  for_each = var.apps
+
+  account_id    = var.account_id
+  app_name      = "${var.project_id}-${each.key}"
+  app_domain    = each.value.hostname
+  policy_name   = "${var.project_id}-${each.key}-allow-${each.value.access_list}"
+  email_list_id = cloudflare_zero_trust_list.email[each.value.access_list].id
+
+  depends_on = [module.worker_domain, cloudflare_zero_trust_organization.this]
+}
+
+module "worker_domain" {
+  source   = "../../modules/worker-domain"
+  for_each = var.apps
+
+  account_id = var.account_id
+  zone_id    = local.zone_id
+  zone_name  = var.base_domain
+  hostname   = each.value.hostname
+  service    = each.key
+}
+
+# 旧・アプリごとの個別モジュールからの state 移行。
+moved {
+  from = module.sales_report_access
+  to   = module.access["sales-report"]
 }

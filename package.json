@@ -3,8 +3,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "bootstrap:builds": "node --experimental-strip-types scripts/bootstrap-builds.ts",
+    "bootstrap:access": "node --experimental-strip-types scripts/bootstrap-access.ts",
+    "deploy:ci": "node --experimental-strip-types scripts/deploy.ts --source github-actions",
+    "deploy:builds": "node --experimental-strip-types scripts/deploy.ts --source cloudflare-builds",
     "doctor": "node --experimental-strip-types scripts/doctor.ts",
+    "infra:check": "node --experimental-strip-types scripts/infra-config.ts",
+    "infra:plan": "op run --env-file .env.terraform.1password -- mise exec -- node --experimental-strip-types scripts/infra.ts plan",
+    "infra:apply": "op run --env-file .env.terraform.1password -- mise exec -- node --experimental-strip-types scripts/infra.ts apply",
+    "new:app": "node --experimental-strip-types scripts/new-app.ts",
     "lint": "oxlint .",
     "lint:fix": "oxlint . --fix",
     "format": "oxfmt . --write",
@@ -21,7 +27,8 @@
     "oxfmt": "catalog:",
     "oxlint": "catalog:",
     "secretlint": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "wrangler": "catalog:"
   },
   "packageManager": "pnpm@11.8.0"
 }
