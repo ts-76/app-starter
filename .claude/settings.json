@@ -1,4 +1,37 @@
 {
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(**/.env)",
+      "Read(**/.dev.vars)",
+      "Read(**/.dev.vars.*)",
+      "Bash(wrangler deploy:*)",
+      "Bash(wrangler delete:*)",
+      "Bash(terraform apply:*)",
+      "Bash(terraform destroy:*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push --force:*)"
+    ],
+    "allow": [
+      "Bash(pnpm install)",
+      "Bash(pnpm check)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm lint:fix)",
+      "Bash(pnpm format)",
+      "Bash(pnpm format:check)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm secretlint)",
+      "Bash(pnpm doctor)",
+      "Bash(pnpm infra:check)",
+      "Bash(pnpm infra:plan)",
+      "Bash(pnpm infra:apply:*)",
+      "Bash(pnpm new:app:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {

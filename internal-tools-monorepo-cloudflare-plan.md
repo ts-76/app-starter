@@ -86,13 +86,16 @@ internal-tools/
     terraform/
       modules/
         access-app/
-        dns-record/
-      apps/
-        sales-report.yaml
-        hr-admin.yaml
+        worker-domain/
       environments/
         prod/
         staging/
+
+  config/
+    cloudflare/
+      production.json
+    access/
+      sales.csv
 
   .claude/
     settings.json
@@ -273,37 +276,26 @@ Cloudflare Accessで入口を守っていても、アプリ側でユーザー情
 
 ---
 
-## 7. Cloudflare Workers Builds の使い方
+## 7. 選択可能な本番デプロイ
 
-Cloudflare Workers Builds では、モノレポ内の各Workerに対してroot directoryを指定できる。たとえば `apps/sales-report` をroot directoryにすれば、その配下の `wrangler.jsonc` と `package.json` を基準にビルドできる。
+本番デプロイは`config/cloudflare/production.json`の`deployment.mode`で、Cloudflare Workers BuildsまたはGitHub Actionsの一方を選択する。どちらも`main`へのpushを検知し、品質チェック後にproduction Workerをデプロイする。
 
-推奨設定は次の通り。
-
-```txt
-Worker: sales-report
-Root directory: apps/sales-report
-Build command: pnpm install --frozen-lockfile && pnpm check
-Deploy command: pnpm deploy
-Production branch: main
-```
-
-さらに、build watch paths を使って、関係ないアプリの変更でビルドが走らないようにする。
+両方の実行経路はリポジトリに残すが、デプロイスクリプトが設定と実行元を照合するため、同時にはデプロイしない。
 
 ```txt
-Include:
-- apps/sales-report/**
-- packages/cloudflare-access/**
-- packages/ui/**
-- packages/config/**
-- pnpm-lock.yaml
-- pnpm-workspace.yaml
+cloudflare-builds:
+  GitHub App: 対象リポジトリだけを承認
+  Deploy: pnpm deploy:builds -- --app <app-id>
+  Production branch: main
 
-Exclude:
-- apps/hr-admin/**
-- docs/**
+github-actions:
+  GitHub Environment: production
+  Secret: CLOUDFLARE_DEPLOY_API_TOKEN（account-owned）
+  Deploy: pnpm deploy:ci
+  Production branch: main
 ```
 
-これにより、1つのモノレポに複数Workerがあっても、必要なときだけビルドしやすくなる。
+GitHub Actionsは登録済みアプリをまとめて反映する。Workers Buildsは対象Workerごとに同じリポジトリを接続する。どちらも共通configを読み、選択されていない経路は正常終了でスキップする。
 
 ---
 
@@ -385,7 +377,7 @@ Cloudflare権限設計
 
 ## 10. Terraform の使い方
 
-この前提では、Terraformは採用したほうがよい。ただし、各チームに直接触らせない。
+この前提では、Terraformは採用したほうがよい。ただし、利用者やAIエージェントが通常編集する入力と、固定されたTerraformコードを分離する。
 
 Terraformで管理するもの。
 
@@ -407,40 +399,44 @@ Terraformで管理しなくてもよいもの。
 - 日々のアプリ開発
 ```
 
-Terraformを各チームの作業に入れると、手順が重くなる。基盤側が `ops/terraform` を管理し、各チームはアプリ登録ファイルだけ出す形がよい。
+利用者がTerraformコードを直接編集すると手順が重くなる。`ops/terraform`は固定ロジックとし、利用者とAIエージェントは`config/cloudflare/production.json`と`config/access/*.csv`だけを編集する。
 
 ---
 
 ## 11. アプリ登録制
 
-各チームがCloudflareの画面でAccessを作るのではなく、リポジトリにアプリ登録ファイルを追加する。
+Cloudflareの画面で個別にAccessを作るのではなく、リポジトリの利用者向け設定を更新する。
 
 例。
 
-```yaml
-id: sales-report
-name: Sales Report
-team: sales
-domain: sales-report.internal.example.com
-repo: github.com/example/internal-tools
-root_directory: apps/sales-report
-access_group: sales
-owner_email: sales-owner@example.com
-environment: production
+```json
+{
+  "projectId": "internal-tools",
+  "accountId": "0123456789abcdef0123456789abcdef",
+  "baseDomain": "internal.example.com",
+  "environment": "production",
+  "deployment": {
+    "mode": "cloudflare-builds"
+  },
+  "apps": {
+    "sales-report": {
+      "accessList": "sales"
+    }
+  }
+}
 ```
 
-このファイルをPull Requestで出す。基盤側が確認し、TerraformでAccessとDNSを作る。
+閲覧可能なユーザーは`config/access/sales.csv`へ`value,description`形式で記載する。TerraformはZero Trustの再利用可能なEMAIL Listを作り、Access Policyから参照する。
 
 流れはこう。
 
 ```txt
-1. チームが apps/<app-name> にHonoアプリを作る
-2. チームが ops/terraform/apps/<app-name>.yaml を追加する
-3. Pull Requestを出す
-4. 基盤側がAccess、DNS、命名、workers_devの扱いを確認する
-5. Terraform planを確認する
-6. 問題なければTerraform applyする
-7. Cloudflare Workers Buildsでmainから本番へ出す
+1. 利用者とAIエージェントが apps/<app-name> にHonoアプリを作る
+2. config/cloudflare/production.jsonへアプリを登録する
+3. config/access/<list-id>.csvへ閲覧ユーザーを登録する
+4. Pull Requestを出し、mainマージで選択中のCI/CDからWorkerをデプロイする
+5. pnpm infra:planでDNS・Accessの差分を確認する
+6. 利用者が明示承認し、pnpm infra:apply -- --yesで反映する
 ```
 
 これにより、チームはCloudflareの細かい設定を直接触らなくてよくなる。
@@ -461,24 +457,24 @@ environment: production
 - CODEOWNERSで基盤ファイルのレビュー担当を固定
 ```
 
-CODEOWNERSの例。
+このリポジトリでは、存在しないチーム名を仮置きせず、現在のリポジトリオーナーを指定する。
 
 ```txt
-/ops/terraform/ @platform-team
-/packages/cloudflare-access/ @platform-team
-/packages/quality-config/ @platform-team
-/.github/ @platform-team
-/.claude/ @platform-team
-/lefthook.yml @platform-team
-/.oxlintrc.json @platform-team
-/.oxfmtrc.json @platform-team
-/.secretlintrc.json @platform-team
-/pnpm-workspace.yaml @platform-team
-/pnpm-lock.yaml @platform-team
-/apps/sales-report/ @sales-team @platform-team
+/ops/terraform/ @ts-76
+/packages/cloudflare-access/ @ts-76
+/packages/quality-config/ @ts-76
+/.github/ @ts-76
+/.claude/ @ts-76
+/lefthook.yml @ts-76
+/.oxlintrc.json @ts-76
+/.oxfmtrc.json @ts-76
+/.secretlintrc.json @ts-76
+/pnpm-workspace.yaml @ts-76
+/pnpm-lock.yaml @ts-76
+/apps/ @ts-76
 ```
 
-これにより、各チームは自分のアプリを進められるが、基盤に関わる変更は基盤側が確認できる。
+組織チームを作成した場合だけ、実在してwrite権限を持つチームへ置き換える。
 
 
 ### 12.1 GitHub側でそろえるセキュリティ設定
@@ -798,7 +794,7 @@ Claude Code hooksで止めたい操作。
 - wrangler deploy
 - wrangler delete
 - wrangler d1 migrations apply --remote
-- terraform apply
+- 直接のterraform apply
 - terraform destroy
 - git push origin main
 - cloudflare API tokenの表示
@@ -811,9 +807,9 @@ Claude Code hooksで止めたい操作。
 
 ```txt
 - ローカルに本番デプロイ用APIトークンを置かない
-- AIエージェントに本番権限を渡さない
-- 本番はCloudflare Workers Buildsからだけ出す
-- AccessとDNSはTerraformで基盤側が管理する
+- AIエージェントにWorkerの直接デプロイ権限を渡さない
+- 本番はmainに接続したWorkers BuildsまたはGitHub Actionsからだけ出す
+- AccessとDNSは検証付きinfraコマンドからだけ反映する
 ```
 
 `CLAUDE.md` には、方針を短く明記する。
@@ -826,7 +822,7 @@ Claude Code hooksで止めたい操作。
 禁止:
 - wrangler deploy
 - wrangler d1 migrations apply --remote
-- terraform apply
+- 直接のterraform apply
 - terraform destroy
 - git push origin main
 
@@ -837,7 +833,7 @@ Claude Code hooksで止めたい操作。
 - Pull Request作成
 - apps/<app-name>/src 配下の実装修正
 
-Cloudflare Access、DNS、Terraform、共通認証パッケージを変更する場合は、基盤チームのレビューが必要です。
+Cloudflare Access、DNS、Terraform、共通認証パッケージを変更する場合は、利用者の明示確認が必要です。
 ```
 
 ---
@@ -853,8 +849,8 @@ Cloudflare Access、DNS、Terraform、共通認証パッケージを変更する
 2. workers.dev や未保護URLがないか確認
 3. wrangler.jsonc をリポジトリに追加する
 4. Worker名、binding名、D1 database_id を現状に合わせる
-5. Cloudflare Workers Buildsで既存WorkerをGitHubに接続する
-6. mainから本番へ出る状態にする
+5. Workers BuildsまたはGitHub Actionsのデプロイ方式を選ぶ
+6. 選択した方式からmainを本番へ出せる状態にする
 7. AccessとDNSをTerraform管理に寄せる
 8. Claude Code hooksを入れる
 9. main保護とCODEOWNERSを入れる
@@ -882,7 +878,8 @@ Cloudflare Access、DNS、Terraform、共通認証パッケージを変更する
 - apps/* のHonoアプリ構成
 - packages/cloudflare-access
 - wrangler.jsonc
-- Cloudflare Workers Builds
+- `deployment.mode`による排他的なProduction Deploy
+- Workers BuildsのGit接続、またはCloudflareのデプロイ専用account-owned token
 - main保護
 - Rulesetsで必須checkを指定
 - Claude Code hooks
@@ -924,10 +921,11 @@ GitHub
   → DependabotとSecret scanningを有効化する
   → checksが通ったものだけmerge
 
-Cloudflare Workers Builds
-  → mainからWorkerへデプロイ
-  → appごとにroot directoryを指定
-  → build watch pathsで不要なビルドを避ける
+Production Deploy
+  → Workers BuildsまたはGitHub Actionsをconfigで選択
+  → mainからWorkerへ自動デプロイ
+  → 選択されていない経路はデプロイをスキップ
+  → GitHub Actionsの場合だけアカウント所有トークンをEnvironmentに保管
 
 Cloudflare Access
   → custom domainを保護
@@ -935,8 +933,8 @@ Cloudflare Access
   → workers.devは原則閉じる
 
 Terraform
-  → Access、DNS、共通ポリシーを中央管理
-  → 各チームは直接触らない
+  → Access、DNS、再利用可能なEMAIL Listを決定的に生成
+  → 通常はconfigだけを編集し、Terraformコードは触らない
 ```
 
 この形だと、AIエージェントを使って各チームが開発しても、本番の入口と権限は中央でそろう。
@@ -945,9 +943,9 @@ Terraform
 
 ## 18. 判断
 
-今回の前提では、**モノレポ + pnpm + Hono + Cloudflare Workers Builds + Cloudflare Access + Terraform** がよい。
+今回の前提では、**モノレポ + pnpm + Hono + 選択可能なCI/CD + Cloudflare Access + Terraform** がよい。
 
-ただし、Terraformはアプリ開発者全員の道具にしない。基盤側の道具にする。
+ただし、Terraformコードは通常の編集対象にしない。利用者とAIエージェントは検証済みのconfigと安全なラッパーコマンドを使う。
 
 表にするとこう。
 
@@ -956,7 +954,7 @@ Terraform
 | アプリ実装 | Hono |
 | リポジトリ | pnpm workspace のモノレポ |
 | UI | Hono JSX、必要に応じて軽いクライアントJS |
-| デプロイ | Cloudflare Workers Builds |
+| デプロイ | Cloudflare Workers BuildsまたはGitHub Actions + Wrangler |
 | 新規作成導線 | Deploy to Cloudflare |
 | 認証入口 | Cloudflare Access |
 | Access/DNS管理 | Terraform |
@@ -966,7 +964,7 @@ Terraform
 | Git hooks | Lefthook |
 | 依存関係チェック | Dependabot + Dependency Review |
 | コードセキュリティ | CodeQL |
-| AIエージェント | Pull Request作成まで |
+| AIエージェント | PR作成、設定検証、明示承認後のinfra反映 |
 | 危険操作の防止 | 権限設計 + Claude Code hooks |
 
 大事なのは、「作るところは簡単にする」「守るところは中央でそろえる」という分け方。
@@ -987,11 +985,11 @@ Terraform
   https://hono.dev/docs/guides/jsx  
   https://hono.dev/docs/guides/jsx-dom
 
-- Cloudflare Workers Builds: モノレポでroot directoryを指定できる。  
-  https://developers.cloudflare.com/workers/ci-cd/builds/advanced-setups/
+- Cloudflare WorkersをGitHub Actionsからデプロイする。
+  https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/
 
-- Cloudflare Workers Builds: build watch paths。  
-  https://developers.cloudflare.com/workers/ci-cd/builds/build-watch-paths/
+- Cloudflare Workers BuildsでGitリポジトリからデプロイする。
+  https://developers.cloudflare.com/workers/ci-cd/builds/
 
 - Cloudflare Workers: bindings。  
   https://developers.cloudflare.com/workers/runtime-apis/bindings/
