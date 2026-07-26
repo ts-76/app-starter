@@ -1,6 +1,6 @@
 # Terraform
 
-Cloudflare Workers Custom Domain（DNS・証明書を含む）、Zero Trust Organization、Zero Trust Access Application、再利用可能なEMAIL List、Access Policyを生成する固定ロジックです。
+Cloudflare Workers Custom Domain（DNS・証明書を含む）、Zero Trust Organization、メールのOne-time PIN認証、Zero Trust Access Application、再利用可能なEMAIL List、Access Policyを生成する固定ロジックです。
 
 通常の利用者やAIエージェントは、このディレクトリを編集しません。編集する入力は次の2か所です。
 
@@ -20,6 +20,8 @@ bob@example.com,Sales member
 ```
 
 空のCSVは安全側に倒し、そのリストを使うアプリへ誰もアクセスできない状態を表します。
+
+ログイン方式は追加設定が不要なメールのOne-time PINを固定で作成します。Access Listに登録されたメールアドレスを入力すると、Cloudflareからログインコードが送信されます。
 
 ## 利用者向けコマンド
 

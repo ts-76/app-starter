@@ -8,6 +8,13 @@ output "access_auth_domain" {
   value       = cloudflare_zero_trust_organization.this.auth_domain
 }
 
+output "access_identity_provider_ids" {
+  description = "Cloudflare Access identity provider IDs."
+  value = {
+    one_time_pin = cloudflare_zero_trust_access_identity_provider.one_time_pin.id
+  }
+}
+
 output "access_list_ids" {
   description = "Cloudflare Zero Trust reusable EMAIL list ID (リストID別)."
   value       = { for id, list in cloudflare_zero_trust_list.email : id => list.id }

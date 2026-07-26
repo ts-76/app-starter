@@ -34,6 +34,15 @@ resource "cloudflare_zero_trust_organization" "this" {
   session_duration = "24h"
 }
 
+resource "cloudflare_zero_trust_access_identity_provider" "one_time_pin" {
+  account_id = var.account_id
+  name       = "${var.project_id}-email-one-time-pin"
+  type       = "onetimepin"
+  config     = {}
+
+  depends_on = [cloudflare_zero_trust_organization.this]
+}
+
 resource "cloudflare_zero_trust_list" "email" {
   for_each = var.access_lists
 
@@ -43,7 +52,10 @@ resource "cloudflare_zero_trust_list" "email" {
   type        = "EMAIL"
   items       = each.value
 
-  depends_on = [cloudflare_zero_trust_organization.this]
+  depends_on = [
+    cloudflare_zero_trust_organization.this,
+    cloudflare_zero_trust_access_identity_provider.one_time_pin,
+  ]
 }
 
 module "access" {
