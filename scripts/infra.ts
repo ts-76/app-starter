@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 
 import { commandExists, run } from './lib/cli.ts'
+import { CloudflareAccessClient } from './lib/cloudflare-access.ts'
 import { loadProjectConfig, writeTerraformVariables } from './lib/project-config.ts'
 
 type TerraformPlan = {
@@ -81,7 +82,7 @@ function printResources(label: string, resources: string[]): void {
   }
 }
 
-function main(): void {
+async function main(): Promise<void> {
   if (mode !== 'plan' && mode !== 'apply') {
     fail('使い方: pnpm infra:plan または pnpm infra:apply -- --yes')
   }
@@ -155,12 +156,27 @@ function main(): void {
     return
   }
 
+  if (summary.create.includes('cloudflare_zero_trust_organization.this')) {
+    const client = new CloudflareAccessClient({
+      accountId: config.accountId,
+      apiToken,
+    })
+    const organization = await client.ensureOrganization({
+      auth_domain: config.accessAuthDomain,
+      name: config.projectId,
+      session_duration: '24h',
+    })
+    if (organization === 'created') {
+      console.log('\nCloudflare Accessを初期化しました。以後はTerraformで管理します。')
+    }
+  }
+
   terraform(['apply', '-input=false', planFile], environment)
   console.log('\nCloudflareのDNS・Access設定を適用しました。')
 }
 
 try {
-  main()
+  await main()
 } catch (error) {
   console.error(`基盤設定エラー: ${error instanceof Error ? error.message : String(error)}`)
   process.exitCode = 1

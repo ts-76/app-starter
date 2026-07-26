@@ -166,7 +166,7 @@ pnpm bootstrap:access -- --domain sales-report.tslab.app --allowed-email you@exa
 | GitHub Actionsの本番デプロイ | GitHub Environmentのアカウント所有トークン         |
 | Access・DNSのTerraform       | `.env.terraform.1password`のアカウント所有トークン |
 
-Terraform用トークンは対象アカウントだけに限定し、`Zero Trust Edit`、`Workers Scripts Write`（Custom Domain接続用）、`Zone Read`を付与します。GitHubデプロイ用トークンとは役割を分けます。
+Terraform用トークンは対象アカウントを基本範囲として、`Zero Trust Write`、`Access: Organizations, Identity Providers, and Groups Write`、`Access: Apps and Policies Write`、`Workers Scripts Write`（Custom Domain接続用）、`Zone Read`を付与します。Cloudflareのトークン画面で`Workers Scripts Write`を全アカウントにしか指定できない場合は、その制約に従います。GitHubデプロイ用トークンとは役割を分けます。
 
 ## Access・DNSの反映
 
@@ -179,3 +179,4 @@ pnpm infra:apply -- --yes
 ```
 
 `infra:apply`は削除を含むplanと、stateが空の既存環境への適用を拒否します。Terraformの自動実行はありません。
+Access未初期化の新規アカウントでは、承認済みapplyの中でZero Trust Organizationだけを公式APIから初期化し、そのままTerraform stateの管理へ引き渡します。

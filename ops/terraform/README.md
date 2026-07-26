@@ -1,6 +1,6 @@
 # Terraform
 
-Cloudflare Workers Custom Domain（DNS・証明書を含む）、Zero Trust Access Application、再利用可能なEMAIL List、Access Policyを生成する固定ロジックです。
+Cloudflare Workers Custom Domain（DNS・証明書を含む）、Zero Trust Organization、メールのOne-time PIN認証、Zero Trust Access Application、再利用可能なEMAIL List、Access Policyを生成する固定ロジックです。
 
 通常の利用者やAIエージェントは、このディレクトリを編集しません。編集する入力は次の2か所です。
 
@@ -9,7 +9,7 @@ Cloudflare Workers Custom Domain（DNS・証明書を含む）、Zero Trust Acce
 
 ## 入力から作られるもの
 
-`config/cloudflare/production.json` のアプリIDとbase domainから、hostnameとリソース名を決定します。ポリシー名などを利用者が個別入力する必要はありません。Custom Domainの作成時に、CloudflareがDNSレコードと証明書も管理します。
+`config/cloudflare/production.json` のproject ID、アプリID、base domainから、Access認証ドメイン、hostname、リソース名を決定します。ポリシー名などを利用者が個別入力する必要はありません。Custom Domainの作成時に、CloudflareがDNSレコードと証明書も管理します。
 
 `config/access/<list-id>.csv` はCloudflare Zero Trustの再利用可能なEMAIL Listになります。CSVは次の形式です。
 
@@ -20,6 +20,8 @@ bob@example.com,Sales member
 ```
 
 空のCSVは安全側に倒し、そのリストを使うアプリへ誰もアクセスできない状態を表します。
+
+ログイン方式は追加設定が不要なメールのOne-time PINを固定で作成します。Access Listに登録されたメールアドレスを入力すると、Cloudflareからログインコードが送信されます。
 
 ## 利用者向けコマンド
 
@@ -41,7 +43,7 @@ pnpm infra:check
 pnpm infra:plan
 ```
 
-Terraform用のaccount-scoped tokenには、`Zero Trust Edit`、`Workers Scripts Write`（Custom Domain接続用）、`Zone Read`が必要です。
+Terraform用のaccount-scoped tokenには、`Zero Trust Write`、`Access: Organizations, Identity Providers, and Groups Write`、`Access: Apps and Policies Write`、`Workers Scripts Write`（Custom Domain接続用）、`Zone Read`が必要です。リソース範囲は対象アカウントを基本としますが、Cloudflareのトークン画面で`Workers Scripts Write`を全アカウントにしか指定できない場合は、その制約に従います。
 
 plan確認後、利用者が明示的に依頼した場合だけ、保存済みplanを適用します。
 
@@ -54,6 +56,8 @@ pnpm infra:apply -- --yes
 ```sh
 pnpm infra:apply -- --yes --allow-bootstrap
 ```
+
+Accessが未初期化のアカウントでは、`infra:apply`が公式APIでZero Trust Organizationを一度だけ作成してから、同じplanをTerraformへ引き渡します。2回目以降はTerraform stateで管理され、追加のGUI操作は不要です。
 
 直接の `terraform apply` と `terraform destroy` は使いません。入力検証、削除防止、state確認を行う上記コマンドを入口にします。
 

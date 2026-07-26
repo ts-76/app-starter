@@ -27,6 +27,22 @@ locals {
   zone_id = length(data.cloudflare_zones.production.result) == 1 ? data.cloudflare_zones.production.result[0].id : ""
 }
 
+resource "cloudflare_zero_trust_organization" "this" {
+  account_id       = var.account_id
+  auth_domain      = var.access_auth_domain
+  name             = var.project_id
+  session_duration = "24h"
+}
+
+resource "cloudflare_zero_trust_access_identity_provider" "one_time_pin" {
+  account_id = var.account_id
+  name       = "${var.project_id}-email-one-time-pin"
+  type       = "onetimepin"
+  config     = {}
+
+  depends_on = [cloudflare_zero_trust_organization.this]
+}
+
 resource "cloudflare_zero_trust_list" "email" {
   for_each = var.access_lists
 
@@ -35,6 +51,11 @@ resource "cloudflare_zero_trust_list" "email" {
   description = "Managed by Terraform for ${var.project_id}."
   type        = "EMAIL"
   items       = each.value
+
+  depends_on = [
+    cloudflare_zero_trust_organization.this,
+    cloudflare_zero_trust_access_identity_provider.one_time_pin,
+  ]
 }
 
 module "access" {
@@ -47,7 +68,7 @@ module "access" {
   policy_name   = "${var.project_id}-${each.key}-allow-${each.value.access_list}"
   email_list_id = cloudflare_zero_trust_list.email[each.value.access_list].id
 
-  depends_on = [module.worker_domain]
+  depends_on = [module.worker_domain, cloudflare_zero_trust_organization.this]
 }
 
 module "worker_domain" {
