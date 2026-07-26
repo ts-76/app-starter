@@ -8,7 +8,7 @@ Hono、Cloudflare Workers、pnpm workspace を使う社内アプリ基盤です�
 - `config/*`: 利用者が編集するドメイン、アプリ登録、Access許可ユーザー
 - `packages/*`: 共通認証、UI、設定、TypeScript 設定
 - `ops/terraform`: 通常は変更しないCloudflare Access・DNSの生成ロジック
-- `.github/*`: 品質、依存関係、CodeQL の CI
+- `.github/*`: 品質、依存関係、Semgrep の CI
 - `.claude/*`: AI エージェント向けの安全柵
 
 ## 開発
@@ -45,6 +45,14 @@ Workerの本番デプロイは`config/cloudflare/production.json`の`deployment.
 pnpm check
 pnpm infra:check
 ```
+
+PRでは、通常の品質チェックに加えて次のセキュリティチェックを実行します。
+
+- OSV-Scanner: PRで追加・更新した依存関係の既知脆弱性
+- Semgrep: PRで変更したJavaScript/TypeScriptのうち、信頼度が中・高のセキュリティルール
+- secretlint: リポジトリへ混入したシークレット
+
+本番依存関係は、`Dependency Audit` Workflowでもmain更新時と毎週確認します。GitHub Code Securityの有料機能を前提にせず、コードや検査結果を外部サービスへ送らない構成です。
 
 ## 本番反映
 

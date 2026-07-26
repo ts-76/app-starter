@@ -11,11 +11,11 @@ allowBuilds:
 catalog:
   '@cloudflare/workers-types': '4.20260617.1'
   '@types/node': '^24'
-  'hono': '^4'
+  'hono': '^4.12.32'
   'lefthook': '^1'
   'oxfmt': '^0'
   'oxlint': '^1'
-  'secretlint': '^12'
+  'secretlint': '^12.3.1'
   'typescript': '^5'
   'wrangler': '4.102.0'
   'zod': '^3'
