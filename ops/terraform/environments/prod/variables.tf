@@ -18,6 +18,16 @@ variable "base_domain" {
   type        = string
 }
 
+variable "access_auth_domain" {
+  description = "Deterministically derived Cloudflare Access organization domain."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[a-z0-9-]+\\.cloudflareaccess\\.com$", var.access_auth_domain))
+    error_message = "access_auth_domain must be a cloudflareaccess.com hostname."
+  }
+}
+
 variable "apps" {
   description = "Normalized production application registrations."
   type = map(object({

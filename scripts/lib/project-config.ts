@@ -26,6 +26,7 @@ export type ProjectConfig = {
   projectId: string
   accountId: string
   baseDomain: string
+  accessAuthDomain: string
   environment: 'production'
   deployment: {
     mode: DeploymentMode
@@ -225,6 +226,10 @@ export function loadProjectConfig(repoRoot: string): ProjectConfig {
     requireString(root, 'baseDomain', relativeConfigFile),
     'baseDomain',
   )
+  const accessAuthDomain = validateDomain(
+    `${projectId}-${baseDomain.replaceAll('.', '-')}.cloudflareaccess.com`,
+    'accessAuthDomain',
+  )
   const environment = requireString(root, 'environment', relativeConfigFile)
   if (environment !== 'production') {
     fail(`${relativeConfigFile}.environment は production にしてください。`)
@@ -316,6 +321,7 @@ export function loadProjectConfig(repoRoot: string): ProjectConfig {
     projectId,
     accountId,
     baseDomain,
+    accessAuthDomain,
     environment,
     deployment: { mode: deploymentMode },
     apps,
@@ -329,6 +335,7 @@ export function toTerraformVariables(config: ProjectConfig): JsonObject {
     account_id: config.accountId,
     project_id: config.projectId,
     base_domain: config.baseDomain,
+    access_auth_domain: config.accessAuthDomain,
     apps: Object.fromEntries(
       Object.entries(config.apps).map(([id, app]) => [
         id,
