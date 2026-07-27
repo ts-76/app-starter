@@ -12,7 +12,7 @@ catalog:
   '@cloudflare/workers-types': '4.20260620.1'
   '@types/node': '^24'
   'hono': '^4.12.32'
-  'lefthook': '^1'
+  'lefthook': '^2'
   'oxfmt': '^0'
   'oxlint': '^1'
   'secretlint': '^12.3.1'
