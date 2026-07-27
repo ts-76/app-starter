@@ -1,6 +1,7 @@
 import path from 'node:path'
 
 import { loadProjectConfig, writeTerraformVariables } from './lib/project-config.ts'
+import { describeTerraformBackend, getTerraformBackend } from './lib/terraform-backend.ts'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
 
@@ -12,6 +13,7 @@ try {
   console.log(
     `設定OK: ${Object.keys(config.apps).length}アプリ / ${Object.keys(config.accessLists).length} Access List`,
   )
+  console.log(`Terraform state: ${describeTerraformBackend(getTerraformBackend(config))}`)
   for (const [listId, members] of Object.entries(config.accessLists)) {
     console.log(`- ${listId}: ${members.length}人`)
   }

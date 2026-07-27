@@ -1,9 +1,15 @@
 import { spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import path from 'node:path'
 
 import { commandExists, run } from './lib/cli.ts'
 import { CloudflareAccessClient } from './lib/cloudflare-access.ts'
 import { loadProjectConfig, writeTerraformVariables } from './lib/project-config.ts'
+import {
+  describeTerraformBackend,
+  requireTerraformBackendCredentials,
+  writeTerraformBackendConfig,
+} from './lib/terraform-backend.ts'
 
 type TerraformPlan = {
   resource_changes?: Array<{
@@ -18,6 +24,7 @@ const repoRoot = path.resolve(import.meta.dirname, '..')
 const terraformRoot = path.join(repoRoot, 'ops', 'terraform', 'environments', 'prod')
 const generatedRoot = path.join(repoRoot, '.generated', 'terraform')
 const planFile = path.join(generatedRoot, 'production.tfplan')
+const legacyLocalStateFile = path.join(generatedRoot, 'production.tfstate')
 const mode = process.argv[2]
 const approved = process.argv.includes('--yes')
 const allowBootstrap = process.argv.includes('--allow-bootstrap')
@@ -100,18 +107,26 @@ async function main(): Promise<void> {
     fail('環境変数のCloudflare Account IDがconfig/cloudflare/production.jsonと一致しません。')
   }
   const variableFile = writeTerraformVariables(repoRoot, config)
+  const backendConfig = writeTerraformBackendConfig(repoRoot, config)
   for (const warning of config.warnings) {
     console.warn(`注意: ${warning}`)
   }
 
-  const environment = {
+  if (existsSync(legacyLocalStateFile)) {
+    fail(
+      '移行前のローカルstateが残っています。先に pnpm infra:state:migrate -- --yes を実行してください。',
+    )
+  }
+
+  const environment = requireTerraformBackendCredentials({
     ...process.env,
     CLOUDFLARE_API_TOKEN: apiToken,
     CLOUDFLARE_ACCOUNT_ID: config.accountId,
     TF_IN_AUTOMATION: '1',
-  }
+  })
 
-  terraform(['init', '-input=false'], environment)
+  console.log(`Terraform state: ${describeTerraformBackend(backendConfig.backend)}`)
+  terraform(['init', '-input=false', `-backend-config=${backendConfig.file}`], environment)
 
   const stateResult = run('terraform', [`-chdir=${terraformRoot}`, 'state', 'list'])
   const stateIsEmpty = stateResult.status !== 0 || stateResult.stdout.trim() === ''

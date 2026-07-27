@@ -2,6 +2,7 @@ import path from 'node:path'
 
 import { run, mask } from './lib/cli.ts'
 import { loadProjectConfig } from './lib/project-config.ts'
+import { describeTerraformBackend, getTerraformBackend } from './lib/terraform-backend.ts'
 import { getWranglerAccounts } from './lib/wrangler.ts'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
@@ -84,6 +85,7 @@ async function main(): Promise<void> {
       true,
       `${Object.keys(config.apps).length} apps / ${Object.keys(config.accessLists).length} access lists / deploy=${config.deployment.mode}`,
     )
+    record('terraform-state', true, describeTerraformBackend(getTerraformBackend(config)), false)
   } catch (error) {
     record('project-config', false, error instanceof Error ? error.message : String(error))
   }
@@ -170,6 +172,16 @@ async function main(): Promise<void> {
     terraformToken
       ? `present ${mask(terraformToken)}`
       : 'Custom Domain・Accessを明示反映するときだけ必要',
+    false,
+  )
+  const hasR2AccessKey = Boolean(process.env.AWS_ACCESS_KEY_ID)
+  const hasR2SecretKey = Boolean(process.env.AWS_SECRET_ACCESS_KEY)
+  record(
+    'env:R2_TERRAFORM_STATE',
+    hasR2AccessKey && hasR2SecretKey,
+    hasR2AccessKey && hasR2SecretKey
+      ? 'R2 state credentials are present'
+      : 'infraコマンド実行時だけ1Passwordから注入',
     false,
   )
   const width = Math.max(...checks.map((check) => check.name.length), 1)

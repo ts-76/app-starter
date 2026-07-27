@@ -37,7 +37,7 @@ pnpm new:app <app-id> --team <team> --owner-email <email>
 - 「〇〇さんがアプリを見られるようにして」→ Access ListのCSVを更新し、設定を検証します
 - 「ドメインと閲覧制限を反映して」→ Terraform planを表示し、確認後に固定手順で反映します
 
-Workerの本番デプロイは`config/cloudflare/production.json`の`deployment.mode`で、Cloudflare Workers BuildsまたはGitHub Actionsのどちらか一方を選びます。両方の実行経路には排他ガードがあり、選択されていない経路はデプロイせず正常終了します。DNS・Accessは、直接のTerraformコマンドを禁止し、入力検証・削除防止・state確認を備えた `infra:*` コマンドだけを利用します。
+Workerの本番デプロイは`config/cloudflare/production.json`の`deployment.mode`で、Cloudflare Workers BuildsまたはGitHub Actionsのどちらか一方を選びます。両方の実行経路には排他ガードがあり、選択されていない経路はデプロイせず正常終了します。DNS・Accessは、直接のTerraformコマンドを禁止し、入力検証・削除防止・state確認を備えた `infra:*` コマンドだけを利用します。Terraform stateはR2で共有し、別のPCでも同じ構成を安全に扱えます。
 
 ## チェック
 

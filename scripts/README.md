@@ -165,6 +165,7 @@ pnpm bootstrap:access -- --domain sales-report.tslab.app --allowed-email you@exa
 | Workers BuildsのAPI設定      | 一時的なユーザースコープトークン                   |
 | GitHub Actionsの本番デプロイ | GitHub Environmentのアカウント所有トークン         |
 | Access・DNSのTerraform       | `.env.terraform.1password`のアカウント所有トークン |
+| Terraform remote state       | `.env.terraform.1password`のbucket限定R2資格情報   |
 
 Terraform用トークンは対象アカウントを基本範囲として、`Zero Trust Write`、`Access: Organizations, Identity Providers, and Groups Write`、`Access: Apps and Policies Write`、`Workers Scripts Write`（Custom Domain接続用）、`Zone Read`を付与します。Cloudflareのトークン画面で`Workers Scripts Write`を全アカウントにしか指定できない場合は、その制約に従います。GitHubデプロイ用トークンとは役割を分けます。
 
@@ -180,3 +181,5 @@ pnpm infra:apply -- --yes
 
 `infra:apply`は削除を含むplanと、stateが空の既存環境への適用を拒否します。Terraformの自動実行はありません。
 Access未初期化の新規アカウントでは、承認済みapplyの中でZero Trust Organizationだけを公式APIから初期化し、そのままTerraform stateの管理へ引き渡します。
+
+Terraform stateはR2の `<projectId>-terraform-state` bucketへ保存します。R2の接続先はプロジェクト設定から自動生成され、利用者はbackendファイルを編集しません。初回セットアップと既存local stateの移行手順は[ops/terraform/README.md](../ops/terraform/README.md)を参照してください。

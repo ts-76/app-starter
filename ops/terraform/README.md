@@ -37,7 +37,7 @@ mise install
 pnpm infra:check
 ```
 
-1Passwordの参照ファイルからCloudflare資格情報を一時的に渡し、planを表示します。
+1Passwordの参照ファイルからCloudflare資格情報とR2 state資格情報を一時的に渡し、planを表示します。
 
 ```sh
 pnpm infra:plan
@@ -61,9 +61,47 @@ Accessが未初期化のアカウントでは、`infra:apply`が公式APIでZero
 
 直接の `terraform apply` と `terraform destroy` は使いません。入力検証、削除防止、state確認を行う上記コマンドを入口にします。
 
+## R2 remote state
+
+stateはCloudflare R2の次の場所へ保存します。接続先はプロジェクト設定から自動決定されるため、通常は編集しません。
+
+```text
+r2://<projectId>-terraform-state/<environment>/terraform.tfstate
+```
+
+このプロジェクトでは `r2://internal-tools-terraform-state/production/terraform.tfstate` です。R2は複数PCで同じstateを参照でき、`use_lockfile`による同時更新防止も有効にしています。日常の操作は変わらず、`infra:plan`と`infra:apply`だけを使います。
+
+初回だけ、次の準備を行います。
+
+1. 対象Cloudflareアカウントに `internal-tools-terraform-state` というR2 bucketを作成
+2. そのbucketだけに `Object Read & Write` を持つR2 API tokenを作成
+3. 1PasswordのCloudflare vaultにある `builds-api-token` 項目を開く
+4. 取得したS3互換資格情報を `AWS_ACCESS_KEY_ID` と `AWS_SECRET_ACCESS_KEY` の2フィールドへ保存
+
+資格情報は `.env.terraform.1password` の参照を通して実行中だけ環境変数へ入り、生成されるbackend設定、Terraform plan、Gitには保存しません。
+
+既存のlocal stateから移行するときだけ、次を1回実行します。
+
+```sh
+pnpm infra:state:migrate -- --yes
+```
+
+同じコマンドを再実行してもstateは再コピーせず、R2上の移行済みstateを確認して終了します。
+
+移行コマンドは次の安全確認を自動で行います。
+
+- 移行前のlocal stateを `.generated/terraform/backups` へ保存
+- 移行先が空、または同じresource内容・outputs・resource一覧であることを確認
+- 別のstateがあるR2を上書きせず停止
+- 移行後のresource内容・outputs・resource一覧が元と一致した場合だけlocal stateを退避
+
+空のS3 backendへ初めて保存すると、Terraformは移行先に新しいlineageを採番し、serialを1から開始することがあります。そのためlineage・serialの同値ではなく、実際の管理内容を完全比較します。
+
+移行後は別のPCでも同じ1Password項目を参照できれば、通常の`infra:*`コマンドから同じstateを利用できます。R2資格情報はTerraform操作専用であり、Workerの実行環境やGitHub Environmentには登録しません。
+
 ## stateと既存リソース
 
-local backendのstateは `.generated/terraform/production.tfstate` に保存され、Gitには追加されません。別のPCと共有する運用へ移行する場合は、applyを始める前にremote backendへ移行してください。
+移行前のlocal backendのstateは `.generated/terraform/production.tfstate` にあり、Gitには追加されません。このファイルが残っている間、通常のplan/applyは誤って空のR2を使わないよう停止します。
 
 既存のAccess Application、Policy、Workers Custom DomainがCloudflare上にある場合、最初のapplyより先にimportが必要です。stateが空のまま既存リソースを新規作成しないでください。
 
