@@ -4,8 +4,7 @@
 /.github/ @ts-76
 /.claude/ @ts-76
 /lefthook.yml @ts-76
-/.oxlintrc.json @ts-76
-/.oxfmtrc.json @ts-76
+/vite.config.ts @ts-76
 /.secretlintrc.json @ts-76
 /pnpm-workspace.yaml @ts-76
 /pnpm-lock.yaml @ts-76

@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "typecheck": "tsc --noEmit",
+    "dev": "wrangler dev --var APP_ENV:local",
+    "typecheck": "vp check --no-fmt --no-lint",
     "check": "pnpm typecheck"
   },
   "dependencies": {

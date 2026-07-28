@@ -1,6 +1,6 @@
 # Internal Tools
 
-Hono、Cloudflare Workers、pnpm workspace を使う社内アプリ基盤です。
+Hono、Cloudflare Workers、Vite+、pnpm workspaceを使う社内アプリ基盤です。
 
 ## 構成
 
@@ -9,14 +9,41 @@ Hono、Cloudflare Workers、pnpm workspace を使う社内アプリ基盤です�
 - `packages/*`: 共通認証、UI、設定、TypeScript 設定
 - `ops/terraform`: 通常は変更しないCloudflare Access・DNSの生成ロジック
 - `.github/*`: 品質、依存関係、Semgrep の CI
-- `.claude/*`: AI エージェント向けの安全柵
+- `vite.config.ts`: Vite+のlint、format、型チェック、test、staged-file設定
+- `AGENTS.md`: AI エージェント共通の作業ルールと完了条件
+- `.claude/*`: Claude Code向けの追加の安全柵
 
-## 開発
+## Node 22.6以降、pnpm 11.8、Vite+を使う
+
+日常のアプリ開発には、mise、Node.js 22.6以上23未満、pnpm 11.8.0、Gitを使います。NodeのTypeScript直接実行を利用しているため、Node 22.0では運用スクリプトを実行できません。`mise.toml`には検証済みのNodeとTerraformを固定しています。
+
+PRを作る場合はGitHub CLI(`gh`)、DNS・Accessを扱う場合は1Password CLI(`op`)とCloudflare資格情報も必要です。Wranglerはworkspaceの依存関係として入るため、グローバルインストールは不要です。
+
+初回は次の順で準備します。
 
 ```sh
-pnpm install
+mise install
+mise exec -- corepack enable
+mise exec -- corepack prepare pnpm@11.8.0 --activate
+mise exec -- pnpm install --frozen-lockfile
+mise exec -- pnpm exec vp --version
+mise exec -- pnpm doctor
+```
+
+miseのshell連携が有効なら、以後の`mise exec --`は省略できます。shell連携を使わない環境では、本文の`pnpm ...`を`mise exec -- pnpm ...`に読み替えてください。
+
+`pnpm doctor`はツール、GitHub、Cloudflareの認証状態を値を伏せて表示します。表示された`missing`のうち、担当する作業に必要な項目を解消してください。アプリのローカル起動だけなら、Terraformと1Password CLIは不要です。
+
+## sales-reportをローカルで動かす
+
+初回はD1 migrationをローカルDBへ適用してから起動します。
+
+```sh
+pnpm --filter @internal/sales-report exec wrangler d1 migrations apply DB --local
 pnpm --filter @internal/sales-report dev
 ```
+
+認証ヘッダー、D1のサンプルデータ、R2のローカル動作、確認URLは[apps/sales-report/README.md](apps/sales-report/README.md)を参照してください。
 
 ## 新しいアプリを作る
 
@@ -45,6 +72,8 @@ Workerの本番デプロイは`config/cloudflare/production.json`の`deployment.
 pnpm check
 pnpm infra:check
 ```
+
+`pnpm check`はVite+の`vp check`と`vp test`、secretlintを実行します。`vp check`がOxfmt、Oxlint、型チェックをまとめて処理し、`vp test`がVite+内蔵のVitestを実行します。D1・R2・Cloudflare Accessを含む挙動を変えた場合は、対象アプリのREADMEにある手動確認も実施してください。変更種別ごとの完了条件は[AGENTS.md](AGENTS.md)を参照してください。
 
 PRでは、通常の品質チェックに加えて次のセキュリティチェックを実行します。
 

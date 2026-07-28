@@ -32,6 +32,6 @@ export function requireAccessUser(): MiddlewareHandler<{ Variables: AccessVariab
     }
 
     c.set('user', user)
-    await next()
+    return next()
   }
 }
