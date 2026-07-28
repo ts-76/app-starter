@@ -7,6 +7,8 @@ const authenticatedHeaders = {
 }
 
 const baseBindings = {
+  ACCESS_AUD: 'test-audience',
+  ACCESS_TEAM_DOMAIN: 'https://internal-tools-tslab-app.cloudflareaccess.com',
   APP_ENV: 'local' as const,
   ASSETS_BUCKET: {} as R2Bucket,
 }
@@ -14,6 +16,17 @@ const baseBindings = {
 describe('sales-report Worker', () => {
   it('認証ヘッダーがなければアクセスを拒否する', async () => {
     const response = await app.request('/health', {}, baseBindings)
+
+    expect(response.status).toBe(401)
+    await expect(response.text()).resolves.toBe('Cloudflare Access user is required.')
+  })
+
+  it('productionではメールヘッダーだけの偽装を拒否する', async () => {
+    const response = await app.request(
+      '/health',
+      { headers: authenticatedHeaders },
+      { ...baseBindings, APP_ENV: 'production' },
+    )
 
     expect(response.status).toBe(401)
     await expect(response.text()).resolves.toBe('Cloudflare Access user is required.')

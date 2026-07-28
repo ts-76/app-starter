@@ -10,13 +10,9 @@ try {
   const shouldWrite = process.argv.includes('--write')
   const output = shouldWrite ? writeTerraformVariables(repoRoot, config) : null
 
-  console.log(
-    `設定OK: ${Object.keys(config.apps).length}アプリ / ${Object.keys(config.accessLists).length} Access List`,
-  )
+  console.log(`設定OK: ${config.app.id} / ${config.app.hostname}`)
   console.log(`Terraform state: ${describeTerraformBackend(getTerraformBackend(config))}`)
-  for (const [listId, members] of Object.entries(config.accessLists)) {
-    console.log(`- ${listId}: ${members.length}人`)
-  }
+  console.log(`Access許可: ${config.accessMembers.length}人`)
   for (const warning of config.warnings) {
     console.warn(`注意: ${warning}`)
   }

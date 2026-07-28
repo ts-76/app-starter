@@ -29,19 +29,6 @@ function commandVersion(command: string, args: string[] = ['--version']): string
   return result.stdout.trim() || result.stderr.trim()
 }
 
-function hasGitHubName(result: ReturnType<typeof run>, name: string): boolean {
-  if (result.status !== 0) {
-    return false
-  }
-
-  try {
-    const items = JSON.parse(result.stdout) as Array<{ name?: string }>
-    return items.some((item) => item.name === name)
-  } catch {
-    return false
-  }
-}
-
 async function main(): Promise<void> {
   let projectConfig: ReturnType<typeof loadProjectConfig> | null = null
   const nodeVersion = commandVersion('node')
@@ -57,13 +44,7 @@ async function main(): Promise<void> {
   const ghVersion = commandVersion('gh')
   record('gh', Boolean(ghVersion), ghVersion?.split('\n')[0] ?? 'gh command not found')
 
-  const wranglerVersion = commandVersion('pnpm', [
-    '--filter',
-    '@internal/sales-report',
-    'exec',
-    'wrangler',
-    '--version',
-  ])
+  const wranglerVersion = commandVersion('pnpm', ['exec', 'wrangler', '--version'])
   record('wrangler', Boolean(wranglerVersion), wranglerVersion ?? 'pnpm wrangler failed')
 
   const opVersion = commandVersion('op')
@@ -83,7 +64,7 @@ async function main(): Promise<void> {
     record(
       'project-config',
       true,
-      `${Object.keys(config.apps).length} apps / ${Object.keys(config.accessLists).length} access lists / deploy=${config.deployment.mode}`,
+      `${config.app.id} / ${config.app.hostname} / ${config.accessMembers.length} allowed users`,
     )
     record('terraform-state', true, describeTerraformBackend(getTerraformBackend(config)), false)
   } catch (error) {
@@ -111,13 +92,7 @@ async function main(): Promise<void> {
     repo.status === 0 ? repo.stdout.trim() : 'no GitHub repository detected',
   )
 
-  const wranglerWhoami = run('pnpm', [
-    '--filter',
-    '@internal/sales-report',
-    'exec',
-    'wrangler',
-    'whoami',
-  ])
+  const wranglerWhoami = run('pnpm', ['exec', 'wrangler', 'whoami'])
   record(
     'cloudflare-wrangler-auth',
     wranglerWhoami.status === 0,
@@ -130,14 +105,6 @@ async function main(): Promise<void> {
     accountId && wranglerAccounts.some((account) => account.id === accountId),
   )
   const terraformToken = process.env.CLOUDFLARE_TERRAFORM_API_TOKEN
-  const deploymentMode = projectConfig?.deployment.mode
-  const deploySecrets =
-    deploymentMode === 'github-actions'
-      ? run('gh', ['secret', 'list', '--env', 'production', '--json', 'name'])
-      : null
-  const hasDeploySecret = Boolean(
-    deploySecrets && hasGitHubName(deploySecrets, 'CLOUDFLARE_DEPLOY_API_TOKEN'),
-  )
 
   record(
     'cloudflare-account-id',
@@ -149,21 +116,9 @@ async function main(): Promise<void> {
       : 'config/cloudflare/production.jsonにaccountIdを設定',
   )
   record(
-    'github:CLOUDFLARE_DEPLOY_API_TOKEN',
-    deploymentMode !== 'github-actions' || hasDeploySecret,
-    deploymentMode === 'github-actions'
-      ? hasDeploySecret
-        ? 'production environment secret is configured'
-        : 'github-actions mode: add the account-owned deploy token to GitHub Environment production'
-      : 'cloudflare-builds modeでは不要',
-    deploymentMode === 'github-actions',
-  )
-  record(
     'cloudflare-workers-builds',
     true,
-    deploymentMode === 'cloudflare-builds'
-      ? '対象WorkerごとにGit接続とdeploy:builds commandをCloudflare側で確認'
-      : 'github-actions modeでは不要',
+    'Git接続、production branch=main、deploy command=pnpm deploy:builds をCloudflare側で確認',
     false,
   )
   record(

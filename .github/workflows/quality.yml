@@ -20,3 +20,4 @@ jobs:
           cache: true
       - run: vp install --frozen-lockfile
       - run: vp run check
+      - run: vp run infra:check

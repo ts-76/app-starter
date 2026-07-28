@@ -30,9 +30,6 @@ catalogs:
     wrangler:
       specifier: 4.102.0
       version: 4.102.0
-    zod:
-      specifier: ^3
-      version: 3.25.76
 
 overrides:
   vite: npm:@voidzero-dev/vite-plus-core@0.2.6
@@ -40,7 +37,17 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      hono:
+        specifier: 'catalog:'
+        version: 4.12.32
+      jose:
+        specifier: ^6.1.0
+        version: 6.2.3
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: 'catalog:'
+        version: 4.20260620.1
       '@secretlint/secretlint-rule-preset-recommend':
         specifier: latest
         version: 13.0.4
@@ -65,89 +72,6 @@ importers:
       wrangler:
         specifier: 'catalog:'
         version: 4.102.0(@cloudflare/workers-types@4.20260620.1)
-
-  apps/sales-report:
-    dependencies:
-      '@internal/cloudflare-access':
-        specifier: workspace:*
-        version: link:../../packages/cloudflare-access
-      '@internal/config':
-        specifier: workspace:*
-        version: link:../../packages/config
-      '@internal/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      hono:
-        specifier: 'catalog:'
-        version: 4.12.32
-      zod:
-        specifier: 'catalog:'
-        version: 3.25.76
-    devDependencies:
-      '@cloudflare/workers-types':
-        specifier: 'catalog:'
-        version: 4.20260620.1
-      '@internal/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/typescript-config
-      typescript:
-        specifier: 'catalog:'
-        version: 5.9.3
-      wrangler:
-        specifier: 'catalog:'
-        version: 4.102.0(@cloudflare/workers-types@4.20260620.1)
-
-  packages/cloudflare-access:
-    dependencies:
-      hono:
-        specifier: 'catalog:'
-        version: 4.12.32
-    devDependencies:
-      '@cloudflare/workers-types':
-        specifier: 'catalog:'
-        version: 4.20260620.1
-      '@internal/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
-      typescript:
-        specifier: 'catalog:'
-        version: 5.9.3
-
-  packages/config:
-    dependencies:
-      zod:
-        specifier: 'catalog:'
-        version: 3.25.76
-    devDependencies:
-      '@cloudflare/workers-types':
-        specifier: 'catalog:'
-        version: 4.20260620.1
-      '@internal/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
-      typescript:
-        specifier: 'catalog:'
-        version: 5.9.3
-
-  packages/quality-config: {}
-
-  packages/typescript-config: {}
-
-  packages/ui:
-    dependencies:
-      hono:
-        specifier: 'catalog:'
-        version: 4.12.32
-    devDependencies:
-      '@cloudflare/workers-types':
-        specifier: 'catalog:'
-        version: 4.20260620.1
-      '@internal/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
-      typescript:
-        specifier: 'catalog:'
-        version: 5.9.3
 
 packages:
 
@@ -1434,6 +1358,9 @@ packages:
     resolution: {integrity: sha512-5mbUj3SiZXCuRf9fT3ibzbSSEWiy63gFfksmGfdOzujPjW3k+z8WvIBxcJHBoQNlaZaiyB25deviif2+osLmLw==}
     engines: {node: '>=4'}
 
+  jose@6.2.3:
+    resolution: {integrity: sha512-YYVDInQKFJfR/xa3ojUTl8c2KoTwiL1R5Wg9YCydwH0x0B9grbzlg5HC7mMjCtUJjbQ/YnGEZIhI5tCgfTb4Hw==}
+
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
 
@@ -1987,9 +1914,6 @@ packages:
 
   yuku-parser@0.5.48:
     resolution: {integrity: sha512-OWBfhrpgK9+/4+IXG9oT8Bao4AhViQA7vdyNNH7EUg8dQYgwa70XtIBWTpCEme1P1ECyoDNYkn0wT63f8XRcVA==}
-
-  zod@3.25.76:
-    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
 snapshots:
 
@@ -2894,6 +2818,8 @@ snapshots:
       editions: 6.22.0
       textextensions: 6.11.0
 
+  jose@6.2.3: {}
+
   js-tokens@4.0.0: {}
 
   js-yaml@4.2.0:
@@ -3507,5 +3433,3 @@ snapshots:
       '@yuku-parser/binding-linux-x64-musl': 0.5.48
       '@yuku-parser/binding-win32-arm64': 0.5.48
       '@yuku-parser/binding-win32-x64': 0.5.48
-
-  zod@3.25.76: {}

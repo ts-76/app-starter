@@ -1,8 +1,8 @@
-import { requireAccessUser } from '@internal/cloudflare-access'
 import { Hono } from 'hono'
 import { csrf } from 'hono/csrf'
 import { secureHeaders } from 'hono/secure-headers'
 
+import { requireAccessUser } from './middleware/cloudflare-access'
 import { apiRoutes } from './routes/api'
 import { appRoutes } from './routes/app'
 import { healthRoutes } from './routes/health'

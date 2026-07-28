@@ -1,4 +1,11 @@
 {
-  "extends": "./tsconfig.scripts.json",
-  "include": ["scripts/**/*.ts", "vite.config.ts"]
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.worker.json"
+    },
+    {
+      "path": "./tsconfig.scripts.json"
+    }
+  ]
 }

@@ -1,8 +1,0 @@
-{
-  "name": "@internal/typescript-config",
-  "version": "0.0.0",
-  "private": true,
-  "exports": {
-    "./worker": "./worker.json"
-  }
-}

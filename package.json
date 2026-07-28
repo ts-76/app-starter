@@ -4,14 +4,13 @@
   "type": "module",
   "scripts": {
     "bootstrap:access": "node --experimental-strip-types scripts/bootstrap-access.ts",
-    "deploy:ci": "node --experimental-strip-types scripts/deploy.ts --source github-actions",
-    "deploy:builds": "node --experimental-strip-types scripts/deploy.ts --source cloudflare-builds",
+    "deploy:builds": "node --experimental-strip-types scripts/deploy.ts",
+    "dev": "wrangler dev --var APP_ENV:local",
     "doctor": "node --experimental-strip-types scripts/doctor.ts",
     "infra:check": "node --experimental-strip-types scripts/infra-config.ts",
     "infra:state:migrate": "op run --env-file .env.terraform.1password -- mise exec -- node --experimental-strip-types scripts/infra-state.ts migrate",
     "infra:plan": "op run --env-file .env.terraform.1password -- mise exec -- node --experimental-strip-types scripts/infra.ts plan",
     "infra:apply": "op run --env-file .env.terraform.1password -- mise exec -- node --experimental-strip-types scripts/infra.ts apply",
-    "new:app": "node --experimental-strip-types scripts/new-app.ts",
     "lint": "vp lint .",
     "lint:fix": "vp lint . --fix",
     "format": "vp fmt . --write",
@@ -23,7 +22,12 @@
     "check": "vp check && secretlint \"**/*\" && vp test",
     "prepare": "node scripts/install-lefthook-if-git.js"
   },
+  "dependencies": {
+    "hono": "catalog:",
+    "jose": "^6.1.0"
+  },
   "devDependencies": {
+    "@cloudflare/workers-types": "catalog:",
     "@secretlint/secretlint-rule-preset-recommend": "latest",
     "@types/node": "catalog:",
     "lefthook": "catalog:",

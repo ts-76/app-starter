@@ -50,7 +50,7 @@ export default defineConfig({
     ],
   },
   test: {
-    include: ['apps/**/*.test.ts', 'packages/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
   },
   staged: {
     '*.{js,jsx,ts,tsx}': 'vp check --fix',

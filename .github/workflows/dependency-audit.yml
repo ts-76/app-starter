@@ -8,8 +8,6 @@ on:
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
-      - 'apps/*/package.json'
-      - 'packages/*/package.json'
   push:
     branches:
       - main
@@ -17,8 +15,6 @@ on:
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
-      - 'apps/*/package.json'
-      - 'packages/*/package.json'
   schedule:
     - cron: '30 15 * * 0'
   workflow_dispatch:
