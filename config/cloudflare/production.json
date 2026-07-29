@@ -4,12 +4,8 @@
   "accountId": "934c6255d681d05e1fa9903560de8a59",
   "baseDomain": "tslab.app",
   "environment": "production",
-  "deployment": {
-    "mode": "github-actions"
-  },
-  "apps": {
-    "sales-report": {
-      "accessList": "sales"
-    }
+  "app": {
+    "id": "sales-report",
+    "hostname": "sales-report.tslab.app"
   }
 }

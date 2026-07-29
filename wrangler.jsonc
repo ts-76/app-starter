@@ -4,6 +4,7 @@
   "main": "src/index.tsx",
   "compatibility_date": "2026-06-19",
   "workers_dev": false,
+  "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
@@ -16,24 +17,7 @@
   ],
   "vars": {
     "APP_ENV": "production",
-  },
-  "env": {
-    "staging": {
-      "name": "sales-report-staging",
-      "workers_dev": false,
-      "d1_databases": [
-        {
-          "binding": "DB",
-        },
-      ],
-      "r2_buckets": [
-        {
-          "binding": "ASSETS_BUCKET",
-        },
-      ],
-      "vars": {
-        "APP_ENV": "staging",
-      },
-    },
+    "ACCESS_AUD": "f7ca46619205940729a2a042b4693457ab6f13d7cadc8757d1cd25337afc6f22",
+    "ACCESS_TEAM_DOMAIN": "https://internal-tools-tslab-app.cloudflareaccess.com",
   },
 }

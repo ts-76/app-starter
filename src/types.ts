@@ -1,4 +1,4 @@
-import type { AccessVariables } from '@internal/cloudflare-access'
+import type { AccessVariables } from './middleware/cloudflare-access'
 
 export type Bindings = Env
 

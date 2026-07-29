@@ -11,7 +11,6 @@ import { loadProjectConfig } from './lib/project-config.ts'
 const repoRoot = path.resolve(import.meta.dirname, '..')
 
 type Options = {
-  app: string
   appName: string
   domain: string
   accountId: string
@@ -31,7 +30,6 @@ function readOptions(): Options {
   const parsed = parseArgs({
     args,
     options: {
-      app: { type: 'string', default: 'sales-report' },
       name: { type: 'string' },
       domain: { type: 'string' },
       'account-id': { type: 'string' },
@@ -43,13 +41,11 @@ function readOptions(): Options {
     },
   })
 
-  const app = parsed.values.app ?? 'sales-report'
   const envEmails = splitCsv(process.env.ACCESS_ALLOWED_EMAILS)
   const envDomains = splitCsv(process.env.ACCESS_ALLOWED_DOMAINS)
 
   return {
-    app,
-    appName: parsed.values.name ?? 'Sales Report',
+    appName: parsed.values.name ?? '',
     domain: parsed.values.domain ?? process.env.DOMAIN ?? '',
     accountId: parsed.values['account-id'] ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? '',
     allowedEmails: [...envEmails, ...(parsed.values['allowed-email'] ?? [])],
@@ -168,8 +164,11 @@ async function main(): Promise<void> {
 
   const options = readOptions()
   const config = loadProjectConfig(repoRoot)
-  const configuredApp = config.apps[options.app]
-  options.domain ||= configuredApp?.hostname ?? ''
+  options.appName ||= config.app.name
+  options.domain ||= config.app.hostname
+  if (options.allowedEmails.length === 0) {
+    options.allowedEmails = config.accessMembers.map((member) => member.value)
+  }
   validateDomain(options.domain)
 
   const accountId = options.accountId || config.accountId

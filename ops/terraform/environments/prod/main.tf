@@ -16,13 +16,6 @@ check "single_production_zone" {
   }
 }
 
-check "known_access_lists" {
-  assert {
-    condition     = alltrue([for app in values(var.apps) : contains(keys(var.access_lists), app.access_list)])
-    error_message = "Every app.access_list must refer to an access_lists entry."
-  }
-}
-
 locals {
   zone_id = length(data.cloudflare_zones.production.result) == 1 ? data.cloudflare_zones.production.result[0].id : ""
 }
@@ -44,13 +37,11 @@ resource "cloudflare_zero_trust_access_identity_provider" "one_time_pin" {
 }
 
 resource "cloudflare_zero_trust_list" "email" {
-  for_each = var.access_lists
-
   account_id  = var.account_id
-  name        = "${var.project_id}-${each.key}-emails"
-  description = "Managed by Terraform for ${var.project_id}."
+  name        = "${var.project_id}-${var.app_id}-emails"
+  description = "Managed by Terraform for ${var.app_name}."
   type        = "EMAIL"
-  items       = each.value
+  items       = var.allowed_emails
 
   depends_on = [
     cloudflare_zero_trust_organization.this,
@@ -58,32 +49,49 @@ resource "cloudflare_zero_trust_list" "email" {
   ]
 }
 
-module "access" {
-  source   = "../../modules/access-app"
-  for_each = var.apps
+resource "cloudflare_zero_trust_access_application" "this" {
+  account_id = var.account_id
+  name       = "${var.project_id}-${var.app_id}"
+  domain     = var.hostname
+  type       = "self_hosted"
 
-  account_id    = var.account_id
-  app_name      = "${var.project_id}-${each.key}"
-  app_domain    = each.value.hostname
-  policy_name   = "${var.project_id}-${each.key}-allow-${each.value.access_list}"
-  email_list_id = cloudflare_zero_trust_list.email[each.value.access_list].id
+  policies = [{
+    name       = "${var.project_id}-${var.app_id}-allow"
+    decision   = "allow"
+    precedence = 1
+    include = [{
+      email_list = {
+        id = cloudflare_zero_trust_list.email.id
+      }
+    }]
+  }]
 
-  depends_on = [module.worker_domain, cloudflare_zero_trust_organization.this]
+  depends_on = [cloudflare_zero_trust_organization.this]
 }
 
-module "worker_domain" {
-  source   = "../../modules/worker-domain"
-  for_each = var.apps
-
+resource "cloudflare_workers_custom_domain" "this" {
   account_id = var.account_id
   zone_id    = local.zone_id
   zone_name  = var.base_domain
-  hostname   = each.value.hostname
-  service    = each.key
+  hostname   = var.hostname
+  service    = var.app_id
+
+  # Accessを先に作り、新規hostnameが一時的に未保護で公開されることを防ぐ。
+  depends_on = [cloudflare_zero_trust_access_application.this]
 }
 
-# 旧・アプリごとの個別モジュールからの state 移行。
+# 複数アプリ構成から単一アプリ構成へのstate移行。
 moved {
-  from = module.sales_report_access
-  to   = module.access["sales-report"]
+  from = cloudflare_zero_trust_list.email["sales"]
+  to   = cloudflare_zero_trust_list.email
+}
+
+moved {
+  from = module.access["sales-report"].cloudflare_zero_trust_access_application.this
+  to   = cloudflare_zero_trust_access_application.this
+}
+
+moved {
+  from = module.worker_domain["sales-report"].cloudflare_workers_custom_domain.this
+  to   = cloudflare_workers_custom_domain.this
 }

@@ -10,8 +10,8 @@ type WranglerWhoami = {
   accounts?: WranglerAccount[]
 }
 
-export function getWranglerAccounts(packageName = '@internal/sales-report'): WranglerAccount[] {
-  const result = run('pnpm', ['--filter', packageName, 'exec', 'wrangler', 'whoami', '--json'])
+export function getWranglerAccounts(): WranglerAccount[] {
+  const result = run('pnpm', ['exec', 'wrangler', 'whoami', '--json'])
 
   if (result.status !== 0) {
     return []
@@ -25,15 +25,12 @@ export function getWranglerAccounts(packageName = '@internal/sales-report'): Wra
   return payload.accounts ?? []
 }
 
-export function detectCloudflareAccountId(input: {
-  explicitAccountId?: string
-  packageName?: string
-}): string | null {
+export function detectCloudflareAccountId(input: { explicitAccountId?: string }): string | null {
   if (input.explicitAccountId) {
     return input.explicitAccountId
   }
 
-  const accounts = getWranglerAccounts(input.packageName)
+  const accounts = getWranglerAccounts()
 
   if (accounts.length === 1 && accounts[0]) {
     return accounts[0].id

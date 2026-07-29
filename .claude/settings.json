@@ -25,7 +25,6 @@
       "Bash(pnpm infra:check)",
       "Bash(pnpm infra:plan)",
       "Bash(pnpm infra:apply:*)",
-      "Bash(pnpm new:app:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",

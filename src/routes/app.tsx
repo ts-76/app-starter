@@ -1,6 +1,6 @@
-import { Button, Page } from '@internal/ui'
 import { Hono } from 'hono'
 
+import { Button, Page } from '../components/ui'
 import type { AppContext } from '../types'
 
 export const appRoutes = new Hono<AppContext>()
