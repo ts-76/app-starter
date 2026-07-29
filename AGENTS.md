@@ -44,16 +44,16 @@ AIによるmainへのマージは禁止です。
 
 ## 変更種別ごとの完了条件
 
-| 変更種別                              | 必須チェック                     | 追加確認                                    |
-| ------------------------------------- | -------------------------------- | ------------------------------------------- |
-| 文書のみ                              | `pnpm format:check`              | コマンド、パス、リンクを実装と照合          |
-| `src`・`wrangler.jsonc`・依存関係     | `pnpm check`                     | READMEの認証あり・なしの手動確認            |
-| D1 migration                          | `pnpm check`                     | migrationを`--local`で適用し、対象APIを確認 |
-| `config/cloudflare`・`config/access`  | `pnpm check`、`pnpm infra:check` | hostnameと許可ユーザー数を確認              |
-| `scripts`                             | `pnpm check`                     | 対象コマンドのdry-runまたは非破壊経路を確認 |
-| `ops/terraform`・`.github`・`.claude` | `pnpm check`、`pnpm infra:check` | 編集前に利用者の明示確認が必要              |
+| 変更種別                              | 必須チェック                         | 追加確認                                    |
+| ------------------------------------- | ------------------------------------ | ------------------------------------------- |
+| 文書のみ                              | `pnpm format:check`                  | コマンド、パス、リンクを実装と照合          |
+| `src`・`wrangler.jsonc`・依存関係     | `pnpm run check`                     | READMEの認証あり・なしの手動確認            |
+| D1 migration                          | `pnpm run check`                     | migrationを`--local`で適用し、対象APIを確認 |
+| `config/cloudflare`・`config/access`  | `pnpm run check`、`pnpm infra:check` | hostnameと許可ユーザー数を確認              |
+| `scripts`                             | `pnpm run check`                     | 対象コマンドのdry-runまたは非破壊経路を確認 |
+| `ops/terraform`・`.github`・`.claude` | `pnpm run check`、`pnpm infra:check` | 編集前に利用者の明示確認が必要              |
 
-`pnpm check`はVite+の`vp check`と`vp test`、secretlintを実行します。挙動を変更した場合は
+`pnpm run check`はVite+の`vp check`と`vp test`、secretlintを実行します。挙動を変更した場合は
 自動テストを追加または更新し、D1・R2・Cloudflare Accessを含む経路はREADMEの手動確認も
 行ってください。
 
