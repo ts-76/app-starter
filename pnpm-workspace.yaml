@@ -5,7 +5,7 @@ allowBuilds:
   workerd: true
 
 catalog:
-  '@cloudflare/workers-types': '4.20260620.1'
+  '@cloudflare/workers-types': '5.20260728.1'
   '@types/node': '^24'
   'hono': '^4.12.32'
   'lefthook': '^1'
