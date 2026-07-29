@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "sales-report",
   "main": "src/index.tsx",
+  "tsconfig": "./tsconfig.worker.json",
   "compatibility_date": "2026-06-19",
   "workers_dev": false,
   "preview_urls": false,

@@ -68,7 +68,7 @@ Cloudflare DashboardでこのリポジトリをWorkerへ接続し、次を設定
 
 - Production branch: `main`
 - Root directory: `/`
-- Build command: `pnpm check`
+- Build command: `pnpm run check`
 - Deploy command: `pnpm deploy:builds`
 - Preview builds: 無効
 
@@ -107,10 +107,10 @@ stateはR2で共有し、直接のTerraformコマンドは使いません。詳�
 ## チェック
 
 ```sh
-pnpm check
+pnpm run check
 pnpm infra:check
 ```
 
-`pnpm check`はVite+の`vp check`と`vp test`、secretlintを実行します。`vp check`には
+`pnpm run check`はVite+の`vp check`と`vp test`、secretlintを実行します。`vp check`には
 Oxfmt、Oxlint、型チェックが含まれます。D1・R2・Cloudflare Accessを含む挙動を変えた
 場合は、上記の認証あり・なしのローカル確認も実施してください。

@@ -12,7 +12,7 @@ Cloudflare DashboardでWorkerのSettings > Builds > ConnectからGitHubを選び
 | Repository        | このリポジトリ       |
 | Production branch | `main`               |
 | Root directory    | `/`                  |
-| Build command     | `pnpm check`         |
+| Build command     | `pnpm run check`     |
 | Deploy command    | `pnpm deploy:builds` |
 | Preview builds    | 無効                 |
 

@@ -38,10 +38,13 @@ describe('sales-report Worker', () => {
       { headers: authenticatedHeaders },
       baseBindings,
     )
+    const appResponse = await app.request('/app', { headers: authenticatedHeaders }, baseBindings)
     const meResponse = await app.request('/api/me', { headers: authenticatedHeaders }, baseBindings)
 
     expect(healthResponse.status).toBe(200)
     await expect(healthResponse.text()).resolves.toBe('ok')
+    expect(appResponse.status).toBe(200)
+    await expect(appResponse.text()).resolves.toContain('local@example.com としてログイン中です。')
     expect(meResponse.status).toBe(200)
     await expect(meResponse.json()).resolves.toEqual({
       user: { email: 'local@example.com' },
