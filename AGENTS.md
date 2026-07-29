@@ -14,6 +14,34 @@ AIエージェントは、まずこのファイルと作業対象に近いREADME
 ファイルの安全規則を優先します。実装と文書が食い違っている場合は、推測で進めず差分を
 利用者へ報告します。
 
+## 使用ツールはAIエージェントが準備する
+
+| ツール          | 用途                        | 導入方法                                 |
+| --------------- | --------------------------- | ---------------------------------------- |
+| Git             | バージョン管理              | OSまたは公式配布                         |
+| mise            | Node.jsとTerraformの管理    | OSまたは公式配布                         |
+| Node.js         | アプリとスクリプトの実行    | `mise install`                           |
+| pnpm / Corepack | 依存関係とコマンドの実行    | `package.json`の`packageManager`に従う   |
+| Vite+           | format・lint・型・test      | `pnpm install --frozen-lockfile`         |
+| Wrangler        | Workerの開発と状態確認      | `pnpm install --frozen-lockfile`         |
+| GitHub CLI      | GitHub認証、PR、Checkの確認 | OSまたは公式配布                         |
+| Terraform       | DNS・Accessのplanとapply    | `mise install`                           |
+| 1Password CLI   | Terraform資格情報の一時注入 | OSまたは公式配布。インフラ操作時のみ使用 |
+
+作業に必要なツールがない場合、AIエージェントは利用者へ手動導入を依頼する前に、安全な範囲で
+導入します。バージョンは`mise.toml`、`package.json`、lockfileを正本とし、独自に最新版へ
+置き換えてはいけません。Vite+とWranglerはグローバルに導入せず、リポジトリの依存関係を
+使います。導入後は`pnpm doctor`で状態を確認します。
+
+次の操作は利用者の関与が必要です。
+
+- `sudo`など管理者権限を使うシステム全体へのインストール
+- GitHub、Cloudflare、1Passwordの対話ログイン
+- パスワード、認証コード、API tokenの作成や入力
+
+認証情報を利用者から受け取って代理入力してはいけません。認証が必要な場合はログイン手順を
+案内し、利用者が完了した後に状態だけを確認します。
+
 ## 1リポジトリ1アプリ
 
 アプリコード、Wrangler設定、Cloudflare設定はすべてこのリポジトリの単一Workerを対象と
