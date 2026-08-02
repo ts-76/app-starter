@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://internal-tools.local/schemas/cloudflare-config.schema.json",
-  "title": "Cloudflare production configuration",
+  "$id": "https://sales-report.local/schemas/cloudflare-config.schema.json",
+  "title": "Sales Report Cloudflare configuration",
   "type": "object",
   "additionalProperties": false,
-  "required": ["projectId", "accountId", "baseDomain", "environment", "app"],
+  "required": ["projectId", "environment", "app"],
   "properties": {
     "$schema": {
       "type": "string"
@@ -16,32 +16,105 @@
       "type": "string",
       "pattern": "^[0-9a-f]{32}$"
     },
-    "baseDomain": {
-      "type": "string",
-      "minLength": 3
-    },
     "environment": {
       "const": "production"
     },
     "app": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "hostname"],
+      "required": ["id"],
       "properties": {
         "id": {
           "$ref": "#/$defs/id"
         },
+        "workersDevHostname": {
+          "$ref": "#/$defs/hostname"
+        }
+      }
+    },
+    "customDomain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["baseDomain", "hostname"],
+      "properties": {
+        "baseDomain": {
+          "$ref": "#/$defs/hostname"
+        },
         "hostname": {
+          "$ref": "#/$defs/hostname"
+        }
+      }
+    },
+    "access": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["authDomain"],
+      "properties": {
+        "authDomain": {
           "type": "string",
-          "minLength": 3
+          "pattern": "^[a-z0-9-]+\\.cloudflareaccess\\.com$"
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/(?:[A-Za-z0-9._~-]+(?:/[A-Za-z0-9._~-]+)*)?$",
+          "default": "/"
+        },
+        "allowedEmailsFile": {
+          "type": "string",
+          "default": "config/access/production.csv"
+        },
+        "resourceNames": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "identityProvider": {
+              "$ref": "#/$defs/id"
+            },
+            "emailList": {
+              "$ref": "#/$defs/id"
+            },
+            "application": {
+              "$ref": "#/$defs/id"
+            },
+            "policy": {
+              "$ref": "#/$defs/id"
+            }
+          }
         }
       }
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "anyOf": [{ "required": ["customDomain"] }, { "required": ["access"] }]
+      },
+      "then": {
+        "required": ["accountId"]
+      }
+    },
+    {
+      "if": {
+        "required": ["access"],
+        "not": { "required": ["customDomain"] }
+      },
+      "then": {
+        "properties": {
+          "app": {
+            "required": ["workersDevHostname"]
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "id": {
       "type": "string",
       "pattern": "^[a-z](?:[a-z0-9-]*[a-z0-9])?$"
+    },
+    "hostname": {
+      "type": "string",
+      "minLength": 3
     }
   }
 }

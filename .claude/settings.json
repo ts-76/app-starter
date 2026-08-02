@@ -1,47 +1,33 @@
 {
   "permissions": {
-    "deny": [
-      "Read(./.env)",
-      "Read(**/.env)",
-      "Read(**/.dev.vars)",
-      "Read(**/.dev.vars.*)",
-      "Bash(wrangler deploy:*)",
-      "Bash(wrangler delete:*)",
-      "Bash(terraform apply:*)",
-      "Bash(terraform destroy:*)",
-      "Bash(git push origin main:*)",
-      "Bash(git push --force:*)"
-    ],
     "allow": [
-      "Bash(pnpm install)",
-      "Bash(pnpm check)",
-      "Bash(pnpm lint)",
-      "Bash(pnpm lint:fix)",
-      "Bash(pnpm format)",
-      "Bash(pnpm format:check)",
-      "Bash(pnpm typecheck)",
-      "Bash(pnpm secretlint)",
-      "Bash(pnpm doctor)",
-      "Bash(pnpm infra:check)",
-      "Bash(pnpm infra:plan)",
-      "Bash(pnpm infra:apply:*)",
+      "Bash(npm install)",
+      "Bash(npm ci)",
+      "Bash(npm run check)",
+      "Bash(npm run lint)",
+      "Bash(npm run lint:fix)",
+      "Bash(npm run format)",
+      "Bash(npm run format:check)",
+      "Bash(npm run typecheck)",
+      "Bash(npm run secretlint)",
+      "Bash(npm run doctor)",
+      "Bash(npm run infra:check)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
       "Bash(git log:*)",
       "Bash(git branch:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/.dev.vars)",
+      "Read(**/.dev.vars.*)",
+      "Bash(wrangler deploy:*)",
+      "Bash(wrangler delete:*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push --force:*)"
     ]
   },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node .claude/hooks/block-dangerous-commands.js"
-          }
-        ]
-      }
-    ]
-  }
+  "enabledPlugins": {}
 }

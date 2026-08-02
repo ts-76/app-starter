@@ -1,45 +1,77 @@
 {
-  "name": "internal-tools",
+  "name": "team-lunch-vote",
   "private": true,
   "type": "module",
   "scripts": {
-    "bootstrap:access": "node --experimental-strip-types scripts/bootstrap-access.ts",
+    "build": "react-router build",
+    "deploy": "node --experimental-strip-types scripts/deploy.ts",
     "deploy:builds": "node --experimental-strip-types scripts/deploy.ts",
-    "dev": "wrangler dev --var APP_ENV:local",
+    "dev": "react-router dev",
     "doctor": "node --experimental-strip-types scripts/doctor.ts",
     "infra:check": "node --experimental-strip-types scripts/infra-config.ts",
-    "infra:state:migrate": "op run --env-file .env.terraform.1password -- mise exec -- node --experimental-strip-types scripts/infra-state.ts migrate",
-    "infra:plan": "op run --env-file .env.terraform.1password -- mise exec -- node --experimental-strip-types scripts/infra.ts plan",
-    "infra:apply": "op run --env-file .env.terraform.1password -- mise exec -- node --experimental-strip-types scripts/infra.ts apply",
     "lint": "vp lint .",
     "lint:fix": "vp lint . --fix",
     "format": "vp fmt . --write",
     "format:check": "vp fmt . --check",
     "secretlint": "secretlint \"**/*\"",
+    "preview": "npm run build && vite preview",
     "test": "vp test",
     "test:watch": "vp test watch",
-    "typecheck": "vp check --no-fmt --no-lint",
-    "check": "vp check && secretlint \"**/*\" && vp test",
-    "prepare": "node scripts/install-lefthook-if-git.js"
+    "typecheck": "react-router typegen && vp check --no-fmt --no-lint",
+    "check": "react-router typegen && vp check && secretlint \"**/*\" && vp test",
+    "typegen": "wrangler types && react-router typegen"
   },
   "dependencies": {
-    "hono": "catalog:",
-    "jose": "^6.1.0"
+    "hono": "4.12.32",
+    "isbot": "^5.2.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router": "^8.3.0"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "catalog:",
-    "@secretlint/secretlint-rule-preset-recommend": "latest",
-    "@types/node": "catalog:",
-    "lefthook": "catalog:",
-    "secretlint": "catalog:",
-    "typescript": "catalog:",
-    "vite": "catalog:",
-    "vite-plus": "catalog:",
-    "wrangler": "catalog:"
+    "@cloudflare/vite-plugin": "^1.50.0",
+    "@hono/cli": "^0.1.10",
+    "@react-router/dev": "^8.3.0",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.4",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "secretlint": "^13.0.4",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.0",
+    "vite-plus": "0.2.6",
+    "wrangler": "4.118.0"
+  },
+  "overrides": {
+    "@hono/node-server": "2.0.12",
+    "fast-uri": "3.1.4",
+    "js-yaml": "4.3.0",
+    "vite": "^8.2.0"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "npm",
+      "version": ">=11",
+      "onFail": "error"
+    },
+    "runtime": {
+      "name": "node",
+      "version": ">=24.18 <25",
+      "onFail": "error"
+    }
   },
   "engines": {
-    "node": ">=22.6 <23",
-    "pnpm": "11.8.0"
+    "node": ">=24.18 <25",
+    "npm": ">=11"
   },
-  "packageManager": "pnpm@11.8.0"
+  "packageManager": "npm@11.16.0",
+  "cloudflare": {
+    "bindings": {
+      "DB": {
+        "description": "ランチ候補と投票数を保存するD1 databaseです。"
+      }
+    }
+  }
 }

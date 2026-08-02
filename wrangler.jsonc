@@ -1,24 +1,21 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "sales-report",
-  "main": "src/index.tsx",
-  "tsconfig": "./tsconfig.worker.json",
-  "compatibility_date": "2026-06-19",
-  "workers_dev": false,
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-29",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
   "preview_urls": false,
   "d1_databases": [
     {
       "binding": "DB",
-    },
-  ],
-  "r2_buckets": [
-    {
-      "binding": "ASSETS_BUCKET",
+      "database_name": "sales-report-db",
     },
   ],
   "vars": {
     "APP_ENV": "production",
-    "ACCESS_AUD": "f7ca46619205940729a2a042b4693457ab6f13d7cadc8757d1cd25337afc6f22",
-    "ACCESS_TEAM_DOMAIN": "https://internal-tools-tslab-app.cloudflareaccess.com",
+  },
+  "observability": {
+    "enabled": true,
   },
 }

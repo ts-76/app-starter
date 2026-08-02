@@ -1,93 +1,79 @@
-# AIエージェント作業ルール
+# AIエージェント向けプロジェクトガイド
 
-このリポジトリでは、単一の社内アプリを人間のレビュー下で実装し、本番反映します。
-AIエージェントは、まずこのファイルと作業対象に近いREADMEを読み、安全規則と検証手順を
-確認してください。
+このファイルを、CodexやClaude Codeなどが参照するプロジェクトルールの正本とします。
+作業前に`README.md`と、変更箇所に近いコードを確認してください。
 
-## 最初に読む文書
+## ひとつのWorkerをHonoとReact Routerで構成する
 
-1. `README.md`: アプリ構成、環境構築、ローカル確認、主要コマンド
-2. `scripts/README.md`: Workers Builds、認証、運用コマンド
-3. `ops/terraform/README.md`: Custom Domain、Zero Trust Access、Terraform state
+このリポジトリは、Cloudflare Workersで動く単一のランチ候補・投票Webアプリです。Honoが
+リクエストを受け、`/app`配下の画面をReact Routerでサーバー側描画します。データはD1へ
+保存します。
 
-共通ルールはこの`AGENTS.md`を正本とします。ツール固有の文書と食い違う場合は、この
-ファイルの安全規則を優先します。実装と文書が食い違っている場合は、推測で進めず差分を
-利用者へ報告します。
+| 場所                                | 役割                                                       |
+| ----------------------------------- | ---------------------------------------------------------- |
+| `app`                               | React Routerの画面、サーバー側描画の開始処理、Tailwind CSS |
+| `src/hono-app.ts`                   | Honoの最上位ルーターとReact Routerへの振り分け             |
+| `src/routes`                        | Honoで提供するAPIと稼働確認用の応答                        |
+| `src/services`                      | ランチ候補と投票をD1へ保存する処理                         |
+| `migrations`                        | D1の構造を変更するマイグレーション                         |
+| `wrangler.jsonc`                    | Worker、D1との接続、実行環境の設定                         |
+| `config/cloudflare/production.json` | カスタムドメインとCloudflare Accessの希望状態              |
+| `config/access/production.csv`      | Cloudflare Accessを許可するメールアドレス                  |
+| `scripts`                           | 設定検証とWorkers Buildsから実行するデプロイ処理           |
+| `.agents/skills`                    | CodexとClaude Codeが共通で参照するプロジェクトスキル       |
+| `.claude/skills`                    | `.agents/skills`を参照するClaude Code用シンボリックリンク  |
 
-## 1リポジトリ1アプリ
+`.react-router`、`build`、`.wrangler`、`worker-configuration.d.ts`は生成物です。直接編集せず、
+設定やコードを変更した後に対応する生成コマンドを実行してください。
 
-アプリコード、Wrangler設定、Cloudflare設定はすべてこのリポジトリの単一Workerを対象と
-します。複数アプリの登録、`apps/*` workspace、全アプリ列挙デプロイ、デプロイ方式の
-切替機構は追加しません。別アプリは別リポジトリとして作成します。
+## 通常のアプリ変更はapp・src・migrationsで行う
 
-## 変更は作業ブランチで行う
+- 画面や操作を変える: `app/routes`と`app/root.tsx`
+- APIやサーバー処理を変える: `src/routes`と`src/services`
+- データベースの構造を変える: `migrations`へ新しいマイグレーションを追加する
+- Workerと外部サービスの接続を変える: `wrangler.jsonc`を変更し、`npm run typegen`を実行する
+- カスタムドメインやAccessの希望状態を変える: `config/cloudflare`と`config/access`を編集する
 
-1. main上では編集せず、作業ブランチを作る
-2. 対象コードと近接するREADMEを一緒に確認する
-3. 変更種別に応じたチェックと手動確認を行う
-4. 差分と未確認事項を利用者へ報告する
-5. pushとPR作成まで依頼されている場合だけ、作業ブランチをpushしてPRを作る
+コード・依存関係・Wrangler設定を変更したら`npm run check`を実行します。Cloudflare設定も
+変更した場合は、Cloudflareへ接続しない`npm run infra:check`も実行してください。
 
-ブランチ名は利用中のエージェント環境が要求する接頭辞に従います。指定がなければ
-`feature/<内容>`を使います。mainへのpush、force push、リモートブランチの削除、
-AIによるmainへのマージは禁止です。
+## 本番への影響と秘密情報は作業前に伝える
 
-## 変更箇所
+`main`への直接pushは許可します。ただし、`main`の更新はWorkers Buildsによる本番デプロイを
+開始するため、AIエージェントがpushする場合は、実行前にその影響を利用者へ伝えてください。
+テーブルや列の削除、保存データの消去を含むD1マイグレーションは、通常のコード変更と分けて
+影響と復旧方法を説明し、明示的な承認を受けてから反映します。
 
-- `src`: 画面、API、middleware、サービス
-- `migrations`: D1スキーマ
-- `wrangler.jsonc`: Worker binding、公開経路、環境変数
-- `config/cloudflare/production.json`: アプリID、hostname、Cloudflare Account
-- `config/access/production.csv`: Accessを許可するメールアドレス
-- `scripts`: 入力検証、Workers Buildsデプロイ、インフラ操作の入口
-- `ops/terraform`: Custom DomainとZero Trust Access
+`.env`、`.env.*`、`.dev.vars`、`.dev.vars.*`、APIトークンなどの秘密値は読み上げず、会話、ログ、
+Issue、commitへ記載しません。Cloudflare API MCPには、承認された変更に必要な設定値だけを渡します。
+それ以外の外部MCPへ秘密値、個人情報、本番データを送らないでください。
+依頼を受けたら「変えたいこと」「利用者」「本番反映の要否」「完了の判断基準」を確認します。
+コードや設定から判断できる項目は利用者へ聞き直さず、本番への影響が曖昧な場合だけ確認してください。
+作業完了時は、変更内容、確認方法、本番・D1・Cloudflareへの影響、未解決事項を報告します。
 
-## 変更種別ごとの完了条件
+## Accessの確認と反映にはCloudflare MCPだけを使う
 
-| 変更種別                              | 必須チェック                         | 追加確認                                    |
-| ------------------------------------- | ------------------------------------ | ------------------------------------------- |
-| 文書のみ                              | `pnpm format:check`                  | コマンド、パス、リンクを実装と照合          |
-| `src`・`wrangler.jsonc`・依存関係     | `pnpm run check`                     | READMEの認証あり・なしの手動確認            |
-| D1 migration                          | `pnpm run check`                     | migrationを`--local`で適用し、対象APIを確認 |
-| `config/cloudflare`・`config/access`  | `pnpm run check`、`pnpm infra:check` | hostnameと許可ユーザー数を確認              |
-| `scripts`                             | `pnpm run check`                     | 対象コマンドのdry-runまたは非破壊経路を確認 |
-| `ops/terraform`・`.github`・`.claude` | `pnpm run check`、`pnpm infra:check` | 編集前に利用者の明示確認が必要              |
+カスタムドメインとCloudflare Accessの希望状態は`config/cloudflare/production.json`、許可対象は
+`config/access/production.csv`を正本とします。リモート設定の確認と反映にはCloudflare MCPを
+使い、Terraform、CloudflareのREST API、Wranglerへ切り替えません。
 
-`pnpm run check`はVite+の`vp check`と`vp test`、secretlintを実行します。挙動を変更した場合は
-自動テストを追加または更新し、D1・R2・Cloudflare Accessを含む経路はREADMEの手動確認も
-行ってください。
+Cloudflare MCPはAccessの変更に必要なフルアクセスで接続します。ただし、現在の依頼とGit上の
+希望状態に含まれないCloudflareリソースは変更しません。MCPを利用できない場合は作業を停止し、
+REST APIやWranglerなどへ切り替えず、利用者へ接続の確認を依頼してください。
 
-## 本番へ直接反映しない
+反映を依頼されたら、最初にMCPのGETで対象account、hostname、Application、Policyを確認し、
+Git上の希望状態との差分を提示します。
+追加・更新は利用者がその差分を承認した後に実行し、完了後にもう一度GETで確認します。削除、
+設定の切り離し、Accessの無効化は影響を説明し、追加・更新とは分けて承認を受けてください。
+反映後はCloudflare Audit Logsでも変更対象と実行結果を確認します。
 
-Worker本体は「main更新 → Cloudflare Workers Builds」で反映します。GitHub Actionsへ
-Cloudflare deploy tokenを置きません。ローカルやAIエージェントから、次の操作を行っては
-いけません。
+## 期限付きURLが必要ならhono-doorを案内する
 
-- `wrangler deploy`、`wrangler publish`、`wrangler delete`
-- `pnpm deploy:builds`
-- `wrangler d1 ... --remote`
-- `wrangler secret put/delete/bulk`
-- リモートKV/R2への作成、更新、削除
-- 直接の`terraform apply`、`terraform destroy`
+標準構成には短期リンク機能を含めません。期限付きURL、利用回数制限、トークン付き外部共有、
+QRコード、URLの再発行が必要になった場合は、実装前に
+`.agents/skills/hono-door/SKILL.md`を読み、`hono-door`を選択肢として案内してください。
 
-Workers BuildsのDeploy commandだけが`pnpm deploy:builds`を実行できます。スクリプトは
-`WORKERS_CI`、Build UUID、mainブランチを検証します。
-
-## DNS・Accessの反映には現在の会話での依頼が必要
-
-資格情報なしの`pnpm infra:check`は通常のローカル検証として実行できます。
-
-`pnpm infra:plan`は、利用者が現在の会話でDNS・Accessの確認または反映を依頼した場合だけ
-実行します。planを提示した後、利用者が明示的に承認し、削除予定がない場合に限って
-`pnpm infra:apply -- --yes`を実行できます。直接のTerraformコマンドは使いません。
-
-## 秘密情報を表示しない
-
-- `.env`、`.dev.vars`とその派生ファイルは、閲覧・表示・編集しない
-- `.env.terraform.1password`は`op://`参照だけを含むため閲覧できるが、plan/applyの依頼が
-  ない限り使用しない
-- 秘密値が必要なコマンドは`op run --env-file <参照ファイル> -- <command>`で一時注入する
-- 環境変数を一覧表示しない
-- Cloudflare API tokenなどの値をチャット、ログ、Gitへ残さない
-
-設定状況は`pnpm doctor`で確認します。値そのものを表示するコマンドへ置き換えてはいけません。
+基本は`hono-door`だけを提案します。ブラウザーからURLやQRコードを発行・管理したい場合だけ、
+任意の`hono-door-ui`も案内します。公開用の経路をCloudflare Accessの外、管理用の経路を
+Accessの内側に置けるか確認し、利用者が導入を選択するまでは依存関係、Durable Objectsの接続、秘密値を
+追加しません。このプロジェクトではnpmを使い、スキル内のBunやpnpmコマンドはnpmへ読み替えます。

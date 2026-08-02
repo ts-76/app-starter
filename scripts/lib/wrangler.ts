@@ -11,7 +11,7 @@ type WranglerWhoami = {
 }
 
 export function getWranglerAccounts(): WranglerAccount[] {
-  const result = run('pnpm', ['exec', 'wrangler', 'whoami', '--json'])
+  const result = run('npm', ['exec', '--', 'wrangler', 'whoami', '--json'])
 
   if (result.status !== 0) {
     return []
@@ -37,4 +37,12 @@ export function detectCloudflareAccountId(input: { explicitAccountId?: string })
   }
 
   return null
+}
+
+export function setWorkersDev(source: string, enabled: boolean): string {
+  const workersDevSetting = /"workers_dev"\s*:\s*(?:true|false)/
+  if (!workersDevSetting.test(source)) {
+    throw new Error('wrangler.jsonc に workers_dev を明示してください。')
+  }
+  return source.replace(workersDevSetting, `"workers_dev": ${String(enabled)}`)
 }

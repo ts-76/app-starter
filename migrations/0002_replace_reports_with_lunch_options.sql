@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS lunch_options (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL CHECK (length(name) BETWEEN 1 AND 80),
+  suggested_by TEXT NOT NULL DEFAULT 'みんな',
+  votes INTEGER NOT NULL DEFAULT 0 CHECK (votes >= 0),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+DROP TABLE IF EXISTS reports;

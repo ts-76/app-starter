@@ -1,94 +1,51 @@
 # 運用スクリプト
 
-## WorkerはCloudflare Workers Buildsで反映する
+## Workers Buildsだけが本番へデプロイする
 
-本番WorkerはCloudflare Workers Buildsだけからデプロイします。GitHub Actionsに
-Cloudflare API tokenを登録しません。
+`npm run deploy`と`npm run deploy:builds`は同じ安全なデプロイスクリプトを実行します。次の条件を
+すべて満たさない限り、本番デプロイは始まりません。
 
-Cloudflare DashboardでWorkerのSettings > Builds > ConnectからGitHubを選び、次を設定します。
-
-| 項目              | 値                   |
-| ----------------- | -------------------- |
-| Repository        | このリポジトリ       |
-| Production branch | `main`               |
-| Root directory    | `/`                  |
-| Build command     | `pnpm run check`     |
-| Deploy command    | `pnpm deploy:builds` |
-| Preview builds    | 無効                 |
-
-GitHub Appはこのリポジトリだけに限定して承認します。Workers Builds側のデプロイ資格情報を
-利用するため、GitHub EnvironmentやRepository SecretsへCloudflare tokenを置きません。
-
-`pnpm deploy:builds`は次の条件をすべて満たす場合だけ実行できます。
-
-- Cloudflareが`WORKERS_CI=1`を設定している
+- `WORKERS_CI=1`
 - production branchが`main`
-- Build UUIDがある
+- Workers BuildsのBuild UUIDが存在する
 
-デプロイ後はWranglerのdeployment statusを確認し、未認証の`/health`が
-`*.cloudflareaccess.com`へリダイレクトされることも確認します。
-
-実際のデプロイを行わず、対象だけ確認できます。
-
-```sh
-pnpm deploy:builds -- --dry-run
-```
-
-## デプロイ状況
-
-Cloudflare DashboardのBuild履歴とGitHub Checkで確認します。main更新後にBuildが作られない
-場合は、GitHub Appのリポジトリアクセス、Production branch、Build watch pathsを確認します。
-
-## Doctor
+Workers BuildsにはBuild commandを`npm run check`、Deploy commandを`npm run deploy:builds`として
+設定します。デプロイ処理はVite production build、D1 migration、Worker更新の順に実行し、
+最後にdeployment statusを確認します。ローカルではdry-runだけを実行できます。
 
 ```sh
-pnpm doctor
+npm run deploy -- --dry-run
 ```
 
-Node、pnpm、GitHub、Wrangler、Terraform、単一アプリ設定、Cloudflare Account IDを確認します。
-1Password CLIとTerraform資格情報は、DNS・Accessを扱うときだけ任意で必要です。
-
-## 認証の役割分担
-
-| 用途                       | 認証                                             |
-| -------------------------- | ------------------------------------------------ |
-| 日常のローカル開発         | 不要                                             |
-| ローカルでCloudflareを調査 | `wrangler login`のOAuth                          |
-| Worker本番デプロイ         | Cloudflare Workers Builds側のデプロイ資格情報    |
-| Access・DNSのTerraform     | `.env.terraform.1password`のCloudflare token     |
-| Terraform remote state     | `.env.terraform.1password`のbucket限定R2資格情報 |
-
-Terraform用トークンは対象アカウントへ限定し、Zero Trust、Access Application、
-Workers Custom Domain、Zone Readに必要な最小権限だけを付与します。Workerデプロイ資格情報とは
-分離します。
-
-## Access・DNS
-
-利用者が通常編集するのは次の2ファイルです。
-
-- `config/cloudflare/production.json`
-- `config/access/production.csv`
+## 設定を確認する
 
 ```sh
-pnpm infra:check
-pnpm infra:plan
-pnpm infra:apply -- --yes
+npm run infra:check
+npm run doctor
 ```
 
-`infra:check`は資格情報なしで実行できます。`infra:plan`は現在の会話で確認・反映を依頼された
-場合だけ実行し、`infra:apply`はplan確認後の明示承認がある場合だけ実行します。
+`infra:check`は資格情報を使わず、Custom DomainとAccessの設定を検証します。両方とも未設定なら、
+MCP管理対象のないデフォルト構成として正常終了します。設定されている場合は、安全なMCP反映順序も
+表示します。このコマンドはCloudflareへ接続しません。
 
-`infra:apply`は削除を含むplanと、stateが空の既存環境への適用を拒否します。Terraform stateは
-R2の`<projectId>-terraform-state` bucketへ保存します。
+`doctor`は外部サービスへ接続せず、次のローカル状態を確認します。
 
-## Bootstrap Cloudflare Access（非常用）
+- Node.jsがこのプロジェクトの対応versionであること
+- projectにWrangler packageがインストールされていること
+- `config/cloudflare/production.json`とAccess用CSVが正しいこと
+- Git repository内で実行していること
+- `.mcp.json`と`.codex/config.toml`のMCP server名・URLが一致していること
+- 任意のGitHub CLIを実行できること
 
-Terraformが使えない緊急時だけ利用します。通常は`infra:*`を使います。
+`npm run doctor`を起動できた時点でnpmは利用できるため、npm自体のversion確認は行いません。
+GitHub認証、Wrangler認証、Cloudflare account、Workers Builds、MCPの接続状態もローカルのdoctorでは
+確認しません。Cloudflareの現在値は、反映を依頼された会話でMCPのGETにより確認します。
 
-```sh
-pnpm bootstrap:access -- --dry-run
-op run --env-file .env.terraform.1password -- pnpm bootstrap:access
-```
+## 任意インフラはCloudflare MCPで反映する
 
-dry-runと本実行のどちらも、単一アプリのhostnameと
-`config/access/production.csv`を既定値として使用します。
+Custom DomainまたはAccessのリモート確認・反映は、利用者が現在の会話で依頼した場合だけ行います。
+ローカルのplan/applyコマンドやCloudflare API tokenは使いません。
+
+CodexはCloudflare MCPのGETで現状を取得し、Git上の設定との差分をplanとして提示します。
+createまたはupdateはplanの明示承認後だけ実行し、削除・detach・Access無効化は別途承認を必要と
+します。反映後はGETで再確認します。詳しい作業規則は`AGENTS.md`を参照してください。

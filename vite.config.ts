@@ -1,6 +1,21 @@
-import { defineConfig } from 'vite-plus'
+import { defineConfig, lazyPlugins } from 'vite-plus'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  plugins:
+    mode === 'test'
+      ? []
+      : lazyPlugins(async () => {
+          const [{ cloudflare }, { reactRouter }, { default: tailwindcss }] = await Promise.all([
+            import('@cloudflare/vite-plugin'),
+            import('@react-router/dev/vite'),
+            import('@tailwindcss/vite'),
+          ])
+          return [
+            cloudflare({ inspectorPort: false, viteEnvironment: { name: 'ssr' } }),
+            tailwindcss(),
+            reactRouter(),
+          ]
+        }),
   lint: {
     categories: {
       correctness: 'error',
@@ -8,7 +23,16 @@ export default defineConfig({
       perf: 'warn',
     },
     plugins: ['typescript', 'oxc', 'unicorn', 'import'],
-    ignorePatterns: ['node_modules/**', 'dist/**', '.wrangler/**', 'coverage/**'],
+    ignorePatterns: [
+      'node_modules/**',
+      'dist/**',
+      'build/**',
+      '.react-router/**',
+      '.wrangler/**',
+      'coverage/**',
+      '.agents/skills/**',
+      'worker-configuration.d.ts',
+    ],
     options: {
       typeAware: true,
       typeCheck: true,
@@ -24,7 +48,11 @@ export default defineConfig({
         },
       },
       {
-        files: ['**/*.test.ts'],
+        files: ['app/root.tsx'],
+        rules: { 'import/no-unassigned-import': 'off' },
+      },
+      {
+        files: ['**/*.test.{ts,tsx}'],
         plugins: ['typescript', 'vitest'],
         rules: {
           'typescript/no-unsafe-type-assertion': 'off',
@@ -43,14 +71,16 @@ export default defineConfig({
     ignorePatterns: [
       'node_modules/**',
       'dist/**',
+      'build/**',
+      '.react-router/**',
       '.wrangler/**',
       'coverage/**',
-      'pnpm-lock.yaml',
-      'internal-tools-monorepo-cloudflare-plan.md',
+      '.agents/skills/**',
+      'package-lock.json',
     ],
   },
   test: {
-    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
+    include: ['app/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}', 'scripts/**/*.test.ts'],
   },
   staged: {
     '*.{js,jsx,ts,tsx}': 'vp check --fix',
@@ -59,4 +89,4 @@ export default defineConfig({
   run: {
     cache: true,
   },
-})
+}))

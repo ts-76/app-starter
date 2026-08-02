@@ -1,0 +1,4 @@
+interface:
+  display_name: "Hono Door"
+  short_description: "Build short-lived public links with Hono"
+  default_prompt: "Use $hono-door to add or review short-lived public links in a Hono Cloudflare Worker."

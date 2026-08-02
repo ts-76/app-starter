@@ -1,11 +1,10 @@
-/ops/terraform/ @ts-76
-/src/middleware/cloudflare-access.ts @ts-76
 /.github/ @ts-76
 /.claude/ @ts-76
-/lefthook.yml @ts-76
 /vite.config.ts @ts-76
 /.secretlintrc.json @ts-76
-/pnpm-workspace.yaml @ts-76
-/pnpm-lock.yaml @ts-76
+/.npmrc @ts-76
+/package.json @ts-76
+/package-lock.json @ts-76
+/mise.toml @ts-76
 /src/ @ts-76
 /wrangler.jsonc @ts-76

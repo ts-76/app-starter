@@ -1,17 +1,15 @@
 node_modules/
-.pnpm-store/
 dist/
+build/
+.react-router/
 .wrangler/
 coverage/
 .generated/
-.terraform/
-*.tfplan
-*.tfstate
-*.tfstate.*
+.wrangler.production.generated.jsonc
 .DS_Store
 .env
 .env.*
 !.env.example
-# Terraform用の1Password参照ファイルだけをコミットする（秘密値は含めない）
-!.env.terraform.1password
-pnpm-debug.log*
+.dev.vars
+.dev.vars.*
+npm-debug.log*

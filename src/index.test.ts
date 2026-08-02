@@ -1,89 +1,80 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import app from './index'
+import { createApp } from './hono-app'
 
-const authenticatedHeaders = {
-  'cf-access-authenticated-user-email': 'local@example.com',
-}
+const app = createApp(async () => new Response('React Router SSR'))
 
 const baseBindings = {
-  ACCESS_AUD: 'test-audience',
-  ACCESS_TEAM_DOMAIN: 'https://internal-tools-tslab-app.cloudflareaccess.com',
   APP_ENV: 'local' as const,
-  ASSETS_BUCKET: {} as R2Bucket,
 }
 
-describe('sales-report Worker', () => {
-  it('認証ヘッダーがなければアクセスを拒否する', async () => {
+describe('Lunch Vote Worker', () => {
+  it('healthを認証なしで返す', async () => {
     const response = await app.request('/health', {}, baseBindings)
 
-    expect(response.status).toBe(401)
-    await expect(response.text()).resolves.toBe('Cloudflare Access user is required.')
+    expect(response.status).toBe(200)
+    await expect(response.text()).resolves.toBe('ok')
   })
 
-  it('productionではメールヘッダーだけの偽装を拒否する', async () => {
-    const response = await app.request(
-      '/health',
-      { headers: authenticatedHeaders },
-      { ...baseBindings, APP_ENV: 'production' },
-    )
-
-    expect(response.status).toBe(401)
-    await expect(response.text()).resolves.toBe('Cloudflare Access user is required.')
-  })
-
-  it('認証済みユーザーへhealthと環境情報を返す', async () => {
-    const healthResponse = await app.request(
-      '/health',
-      { headers: authenticatedHeaders },
-      baseBindings,
-    )
-    const appResponse = await app.request('/app', { headers: authenticatedHeaders }, baseBindings)
-    const meResponse = await app.request('/api/me', { headers: authenticatedHeaders }, baseBindings)
-
-    expect(healthResponse.status).toBe(200)
-    await expect(healthResponse.text()).resolves.toBe('ok')
-    expect(appResponse.status).toBe(200)
-    await expect(appResponse.text()).resolves.toContain('local@example.com としてログイン中です。')
-    expect(meResponse.status).toBe(200)
-    await expect(meResponse.json()).resolves.toEqual({
-      user: { email: 'local@example.com' },
-      environment: 'local',
-    })
-  })
-
-  it('D1の行をreports APIのレスポンスへ変換する', async () => {
+  it('D1の行をlunch-options APIのレスポンスへ変換する', async () => {
     const database = {
       prepare: () => ({
         all: async () => ({
           results: [
             {
-              id: 'report-1',
-              title: '月次売上',
-              status: 'published',
-              created_at: '2026-07-01 00:00:00',
+              id: 'lunch-1',
+              name: 'スパイスカレー',
+              suggested_by: 'トマ',
+              votes: 3,
+              created_at: '2026-08-02 12:00:00',
             },
           ],
         }),
       }),
-    } as unknown as D1Database
+    }
 
     const response = await app.request(
-      '/api/reports',
-      { headers: authenticatedHeaders },
+      '/app/api/lunch-options',
+      {},
       { ...baseBindings, DB: database },
     )
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toEqual({
-      reports: [
+      lunchOptions: [
         {
-          id: 'report-1',
-          title: '月次売上',
-          status: 'published',
-          createdAt: '2026-07-01 00:00:00',
+          id: 'lunch-1',
+          name: 'スパイスカレー',
+          suggestedBy: 'トマ',
+          votes: 3,
+          createdAt: '2026-08-02 12:00:00',
         },
       ],
     })
+  })
+
+  it('ドメイン直下を内部アプリへリダイレクトする', async () => {
+    const response = await app.request('/', {}, baseBindings)
+
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe('/app')
+  })
+
+  it('React Routerのマニフェスト取得をSSR処理へ渡す', async () => {
+    const response = await app.request(
+      '/__manifest?paths=/app&version=test',
+      {},
+      baseBindings,
+      {} as ExecutionContext,
+    )
+
+    expect(response.status).toBe(200)
+    await expect(response.text()).resolves.toBe('React Router SSR')
+  })
+
+  it('未定義のパスは404を返す', async () => {
+    const response = await app.request('/sales-report', {}, baseBindings)
+
+    expect(response.status).toBe(404)
   })
 })

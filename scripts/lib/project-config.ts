@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 
 const idPattern = /^[a-z](?:[a-z0-9-]*[a-z0-9])?$/
@@ -6,6 +6,8 @@ const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const domainPattern =
   /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/
 const accountIdPattern = /^[0-9a-f]{32}$/
+const accessPathPattern = /^\/(?:[a-z0-9._~-]+(?:\/[a-z0-9._~-]+)*)?$/i
+const defaultAccessFile = path.join('config', 'access', 'production.csv')
 
 export type AccessMember = {
   value: string
@@ -15,18 +17,85 @@ export type AccessMember = {
 export type ProjectApp = {
   id: string
   name: string
+  workersDevHostname?: string
+}
+
+export type CustomDomainConfig = {
+  baseDomain: string
   hostname: string
+}
+
+export type AccessConfig = {
+  authDomain: string
+  hostname: string
+  path: string
+  domain: string
+  allowedEmailsFile: string
+  members: AccessMember[]
+  resourceNames: AccessResourceNames
+}
+
+export type AccessResourceNames = {
+  identityProvider: string
+  emailList: string
+  application: string
+  policy: string
 }
 
 export type ProjectConfig = {
   projectId: string
-  accountId: string
-  baseDomain: string
-  accessAuthDomain: string
+  accountId?: string
   environment: 'production'
   app: ProjectApp
-  accessMembers: AccessMember[]
+  customDomain?: CustomDomainConfig
+  access?: AccessConfig
+  mcpManagementEnabled: boolean
   warnings: string[]
+}
+
+export type CloudflareMcpResource =
+  | {
+      kind: 'zero-trust-organization'
+      name: string
+      authDomain: string
+      sessionDuration: '24h'
+    }
+  | {
+      kind: 'access-identity-provider'
+      name: string
+      type: 'onetimepin'
+    }
+  | {
+      kind: 'zero-trust-email-list'
+      name: string
+      members: AccessMember[]
+    }
+  | {
+      kind: 'access-application'
+      name: string
+      hostname: string
+      path: string
+      domain: string
+      type: 'self_hosted'
+      sessionDuration: '24h'
+      policy: {
+        name: string
+        decision: 'allow'
+        precedence: 1
+        emailListName: string
+      }
+    }
+  | {
+      kind: 'workers-custom-domain'
+      baseDomain: string
+      hostname: string
+      service: string
+    }
+
+export type CloudflareMcpDesiredState = {
+  accountId: string
+  environment: 'production'
+  resources: CloudflareMcpResource[]
 }
 
 type JsonObject = Record<string, unknown>
@@ -57,6 +126,13 @@ function requireString(object: JsonObject, key: string, label: string): string {
   return value.trim()
 }
 
+function optionalString(object: JsonObject, key: string, label: string): string | undefined {
+  if (object[key] === undefined) {
+    return undefined
+  }
+  return requireString(object, key, label)
+}
+
 function validateId(value: string, label: string): string {
   if (!idPattern.test(value)) {
     fail(`${label} は小文字英数字とハイフンのIDで指定してください: ${value}`)
@@ -70,6 +146,23 @@ function validateDomain(value: string, label: string): string {
     fail(`${label} はホスト名だけを指定してください（https:// やパスは不可）: ${value}`)
   }
   return normalized
+}
+
+function validateAccessPath(value: string): string {
+  if (!accessPathPattern.test(value)) {
+    fail('access.path は /app のような末尾スラッシュなしのURL pathで指定してください。')
+  }
+
+  try {
+    const url = new URL(value, 'https://example.com')
+    if (url.pathname !== value) {
+      fail('access.path は正規化済みのURL pathで指定してください。')
+    }
+  } catch {
+    fail('access.path は有効なURL pathで指定してください。')
+  }
+
+  return value
 }
 
 function titleFromId(id: string): string {
@@ -158,6 +251,101 @@ export function parseAccessCsv(source: string, label: string): AccessMember[] {
   return members.toSorted((left, right) => left.value.localeCompare(right.value))
 }
 
+function loadCustomDomain(root: JsonObject, label: string): CustomDomainConfig | undefined {
+  if (root.customDomain === undefined) {
+    return undefined
+  }
+  const rawDomain = assertObject(root.customDomain, `${label}.customDomain`)
+  assertAllowedKeys(rawDomain, ['baseDomain', 'hostname'], `${label}.customDomain`)
+  const baseDomain = validateDomain(
+    requireString(rawDomain, 'baseDomain', `${label}.customDomain`),
+    'customDomain.baseDomain',
+  )
+  const hostname = validateDomain(
+    requireString(rawDomain, 'hostname', `${label}.customDomain`),
+    'customDomain.hostname',
+  )
+  if (hostname !== baseDomain && !hostname.endsWith(`.${baseDomain}`)) {
+    fail(`customDomain.hostname は ${baseDomain} 配下にしてください: ${hostname}`)
+  }
+  return { baseDomain, hostname }
+}
+
+function loadAccess(
+  repoRoot: string,
+  root: JsonObject,
+  label: string,
+  endpointHostname: string | undefined,
+  projectId: string,
+  appId: string,
+): AccessConfig | undefined {
+  if (root.access === undefined) {
+    return undefined
+  }
+  const rawAccess = assertObject(root.access, `${label}.access`)
+  assertAllowedKeys(
+    rawAccess,
+    ['authDomain', 'path', 'allowedEmailsFile', 'resourceNames'],
+    `${label}.access`,
+  )
+  if (!endpointHostname) {
+    fail('Custom DomainなしでAccessを使う場合は app.workersDevHostname が必要です。')
+  }
+  const authDomain = validateDomain(
+    requireString(rawAccess, 'authDomain', `${label}.access`),
+    'access.authDomain',
+  )
+  if (!authDomain.endsWith('.cloudflareaccess.com')) {
+    fail('access.authDomain は cloudflareaccess.com のホスト名で指定してください。')
+  }
+  const accessPath = validateAccessPath(optionalString(rawAccess, 'path', `${label}.access`) ?? '/')
+
+  const allowedEmailsFile =
+    optionalString(rawAccess, 'allowedEmailsFile', `${label}.access`) ?? defaultAccessFile
+  const normalizedAccessFile = path.normalize(allowedEmailsFile)
+  if (
+    path.isAbsolute(normalizedAccessFile) ||
+    normalizedAccessFile.startsWith('..') ||
+    !normalizedAccessFile.startsWith(`${path.join('config', 'access')}${path.sep}`)
+  ) {
+    fail('access.allowedEmailsFile は config/access 配下の相対パスで指定してください。')
+  }
+  const accessFile = path.join(repoRoot, normalizedAccessFile)
+  if (!existsSync(accessFile)) {
+    fail(`${allowedEmailsFile} がありません。`)
+  }
+
+  const defaultApplicationName = `${projectId}-${appId}`
+  const rawResourceNames =
+    rawAccess.resourceNames === undefined
+      ? {}
+      : assertObject(rawAccess.resourceNames, `${label}.access.resourceNames`)
+  assertAllowedKeys(
+    rawResourceNames,
+    ['identityProvider', 'emailList', 'application', 'policy'],
+    `${label}.access.resourceNames`,
+  )
+  const resourceName = (key: keyof AccessResourceNames, fallback: string): string => {
+    const value = optionalString(rawResourceNames, key, `${label}.access.resourceNames`) ?? fallback
+    return validateId(value, `access.resourceNames.${key}`)
+  }
+
+  return {
+    authDomain,
+    hostname: endpointHostname,
+    path: accessPath,
+    domain: accessPath === '/' ? endpointHostname : `${endpointHostname}${accessPath}`,
+    allowedEmailsFile: normalizedAccessFile,
+    members: parseAccessCsv(readFileSync(accessFile, 'utf8'), normalizedAccessFile),
+    resourceNames: {
+      identityProvider: resourceName('identityProvider', `${projectId}-email-one-time-pin`),
+      emailList: resourceName('emailList', `${defaultApplicationName}-emails`),
+      application: resourceName('application', defaultApplicationName),
+      policy: resourceName('policy', `${defaultApplicationName}-allow`),
+    },
+  }
+}
+
 export function loadProjectConfig(repoRoot: string): ProjectConfig {
   const relativeConfigFile = path.join('config', 'cloudflare', 'production.json')
   const configFile = path.join(repoRoot, relativeConfigFile)
@@ -177,83 +365,132 @@ export function loadProjectConfig(repoRoot: string): ProjectConfig {
   const root = assertObject(parsed, relativeConfigFile)
   assertAllowedKeys(
     root,
-    ['$schema', 'projectId', 'accountId', 'baseDomain', 'environment', 'app'],
+    ['$schema', 'projectId', 'accountId', 'environment', 'app', 'customDomain', 'access'],
     relativeConfigFile,
   )
 
   const projectId = validateId(requireString(root, 'projectId', relativeConfigFile), 'projectId')
-  const accountId = requireString(root, 'accountId', relativeConfigFile).toLowerCase()
-  if (!accountIdPattern.test(accountId)) {
+  const rawAccountId = optionalString(root, 'accountId', relativeConfigFile)
+  const accountId = rawAccountId?.toLowerCase()
+  if (accountId && !accountIdPattern.test(accountId)) {
     fail(`${relativeConfigFile}.accountId は32文字のCloudflare Account IDで指定してください。`)
   }
-  const baseDomain = validateDomain(
-    requireString(root, 'baseDomain', relativeConfigFile),
-    'baseDomain',
-  )
   const environment = requireString(root, 'environment', relativeConfigFile)
   if (environment !== 'production') {
     fail(`${relativeConfigFile}.environment は production にしてください。`)
   }
 
   const rawApp = assertObject(root.app, `${relativeConfigFile}.app`)
-  assertAllowedKeys(rawApp, ['id', 'hostname'], `${relativeConfigFile}.app`)
+  assertAllowedKeys(rawApp, ['id', 'workersDevHostname'], `${relativeConfigFile}.app`)
   const appId = validateId(requireString(rawApp, 'id', `${relativeConfigFile}.app`), 'app.id')
-  const hostname = validateDomain(
-    requireString(rawApp, 'hostname', `${relativeConfigFile}.app`),
-    'app.hostname',
+  const workersDevHostnameValue = optionalString(
+    rawApp,
+    'workersDevHostname',
+    `${relativeConfigFile}.app`,
   )
-  if (hostname !== baseDomain && !hostname.endsWith(`.${baseDomain}`)) {
-    fail(`app.hostname は ${baseDomain} 配下にしてください: ${hostname}`)
+  const workersDevHostname = workersDevHostnameValue
+    ? validateDomain(workersDevHostnameValue, 'app.workersDevHostname')
+    : undefined
+  if (workersDevHostname && !workersDevHostname.endsWith('.workers.dev')) {
+    fail('app.workersDevHostname は workers.dev のホスト名で指定してください。')
+  }
+  if (workersDevHostname && !workersDevHostname.startsWith(`${appId}.`)) {
+    fail(`app.workersDevHostname は ${appId}. で始まる必要があります。`)
   }
   if (!existsSync(path.join(repoRoot, 'wrangler.jsonc'))) {
     fail('単一アプリの wrangler.jsonc がリポジトリルートにありません。')
   }
 
-  const accessFile = path.join(repoRoot, 'config', 'access', 'production.csv')
-  if (!existsSync(accessFile)) {
-    fail('config/access/production.csv がありません。')
-  }
-  const accessMembers = parseAccessCsv(
-    readFileSync(accessFile, 'utf8'),
-    'config/access/production.csv',
+  const customDomain = loadCustomDomain(root, relativeConfigFile)
+  const access = loadAccess(
+    repoRoot,
+    root,
+    relativeConfigFile,
+    customDomain?.hostname ?? workersDevHostname,
+    projectId,
+    appId,
   )
+  const mcpManagementEnabled = Boolean(customDomain || access)
+  if (mcpManagementEnabled && !accountId) {
+    fail('Custom DomainまたはAccessを使う場合は accountId が必要です。')
+  }
+
   const warnings =
-    accessMembers.length === 0
-      ? ['config/access/production.csv は空です。このアプリには誰もアクセスできません。']
+    access && access.members.length === 0
+      ? [`${access.allowedEmailsFile} は空です。このアプリには誰もアクセスできません。`]
       : []
 
   return {
     projectId,
     accountId,
-    baseDomain,
-    accessAuthDomain: `${projectId}-${baseDomain.replaceAll('.', '-')}.cloudflareaccess.com`,
     environment: 'production',
     app: {
       id: appId,
       name: titleFromId(appId),
-      hostname,
+      workersDevHostname,
     },
-    accessMembers,
+    customDomain,
+    access,
+    mcpManagementEnabled,
     warnings,
   }
 }
 
-export function toTerraformVariables(config: ProjectConfig): JsonObject {
-  return {
-    account_id: config.accountId,
-    project_id: config.projectId,
-    base_domain: config.baseDomain,
-    access_auth_domain: config.accessAuthDomain,
-    app_id: config.app.id,
-    app_name: config.app.name,
-    hostname: config.app.hostname,
-    allowed_emails: config.accessMembers,
+export function toCloudflareMcpDesiredState(config: ProjectConfig): CloudflareMcpDesiredState {
+  if (!config.mcpManagementEnabled || !config.accountId) {
+    fail('Custom DomainまたはAccessが設定されていないため、MCP管理対象はありません。')
   }
-}
 
-export function writeTerraformVariables(repoRoot: string, config: ProjectConfig): string {
-  const output = path.join(repoRoot, '.generated', 'terraform', 'production.tfvars.json')
-  mkdirSync(path.dirname(output), { recursive: true })
-  writeFileSync(output, `${JSON.stringify(toTerraformVariables(config), null, 2)}\n`)
-  return output
+  const resources: CloudflareMcpResource[] = []
+  if (config.access) {
+    const { identityProvider, emailList, application, policy } = config.access.resourceNames
+    resources.push(
+      {
+        kind: 'zero-trust-organization',
+        name: config.projectId,
+        authDomain: config.access.authDomain,
+        sessionDuration: '24h',
+      },
+      {
+        kind: 'access-identity-provider',
+        name: identityProvider,
+        type: 'onetimepin',
+      },
+      {
+        kind: 'zero-trust-email-list',
+        name: emailList,
+        members: config.access.members,
+      },
+      {
+        kind: 'access-application',
+        name: application,
+        hostname: config.access.hostname,
+        path: config.access.path,
+        domain: config.access.domain,
+        type: 'self_hosted',
+        sessionDuration: '24h',
+        policy: {
+          name: policy,
+          decision: 'allow',
+          precedence: 1,
+          emailListName: emailList,
+        },
+      },
+    )
+  }
+
+  if (config.customDomain) {
+    resources.push({
+      kind: 'workers-custom-domain',
+      baseDomain: config.customDomain.baseDomain,
+      hostname: config.customDomain.hostname,
+      service: config.app.id,
+    })
+  }
+
+  return {
+    accountId: config.accountId,
+    environment: config.environment,
+    resources,
+  }
 }
