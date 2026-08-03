@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
 
 permissions:
   actions: read
@@ -11,9 +14,20 @@ permissions:
   security-events: write
 
 jobs:
-  scan:
+  scan-pull-request:
+    if: github.event_name == 'pull_request'
     name: Dependency vulnerability diff
     uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable-pr.yml@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
+    with:
+      scan-args: |-
+        --lockfile=package-lock.json
+      upload-sarif: false
+      fail-on-vuln: true
+
+  scan-main:
+    if: github.event_name == 'push'
+    name: Dependency vulnerability scan
+    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@9a498708959aeaef5ef730655706c5a1df1edbc2 # v2.3.8
     with:
       scan-args: |-
         --lockfile=package-lock.json

@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => ({
       '.wrangler/**',
       'coverage/**',
       '.agents/skills/**',
+      '.claude/skills/**',
       'worker-configuration.d.ts',
     ],
     options: {
@@ -76,6 +77,7 @@ export default defineConfig(({ mode }) => ({
       '.wrangler/**',
       'coverage/**',
       '.agents/skills/**',
+      '.claude/skills/**',
       'package-lock.json',
     ],
   },

@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "sales-report",
+  "name": "ai-app-starter",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-29",
   "compatibility_flags": ["nodejs_compat"],
@@ -9,10 +9,11 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "sales-report-db",
+      "database_name": "ai-app-starter-db",
     },
   ],
   "vars": {
+    "ALLOW_INDEXING": "false",
     "APP_ENV": "production",
   },
   "observability": {

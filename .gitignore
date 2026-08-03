@@ -4,7 +4,6 @@ build/
 .react-router/
 .wrangler/
 coverage/
-.generated/
 .wrangler.production.generated.jsonc
 .DS_Store
 .env
@@ -13,3 +12,7 @@ coverage/
 .dev.vars
 .dev.vars.*
 npm-debug.log*
+
+# Local access lists and other environment-specific CSV files
+config/**/*.csv
+!config/**/*.example.csv

@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -34,10 +37,20 @@ jobs:
           /tmp/semgrep-ci-rules.yml
 
       - name: Scan pull request changes
+        if: github.event_name == 'pull_request'
         run: >-
           semgrep scan
           --config=/tmp/semgrep-ci-rules.yml
           --baseline-commit=${{ github.event.pull_request.base.sha }}
+          --exclude=.semgrep-community-rules
+          --metrics=off
+          --error
+
+      - name: Scan main
+        if: github.event_name == 'push'
+        run: >-
+          semgrep scan
+          --config=/tmp/semgrep-ci-rules.yml
           --exclude=.semgrep-community-rules
           --metrics=off
           --error

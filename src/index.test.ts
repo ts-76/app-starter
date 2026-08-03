@@ -5,6 +5,7 @@ import { createApp } from './hono-app'
 const app = createApp(async () => new Response('React Router SSR'))
 
 const baseBindings = {
+  ALLOW_INDEXING: 'false',
   APP_ENV: 'local' as const,
 }
 
@@ -13,7 +14,28 @@ describe('Lunch Vote Worker', () => {
     const response = await app.request('/health', {}, baseBindings)
 
     expect(response.status).toBe(200)
+    expect(response.headers.get('x-robots-tag')).toBe(
+      'noindex, nofollow, noarchive, nosnippet, noimageindex',
+    )
     await expect(response.text()).resolves.toBe('ok')
+  })
+
+  it('初期状態ではクローラーを拒否する', async () => {
+    const response = await app.request('/robots.txt', {}, baseBindings)
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(response.headers.get('x-robots-tag')).toContain('noindex')
+    await expect(response.text()).resolves.toBe('User-agent: *\nDisallow: /\n')
+  })
+
+  it('明示設定によって検索公開を許可する', async () => {
+    const publicBindings = { ...baseBindings, ALLOW_INDEXING: 'true' }
+    const healthResponse = await app.request('/health', {}, publicBindings)
+    const robotsResponse = await app.request('/robots.txt', {}, publicBindings)
+
+    expect(healthResponse.headers.get('x-robots-tag')).toBeNull()
+    await expect(robotsResponse.text()).resolves.toBe('User-agent: *\nAllow: /\n')
   })
 
   it('D1の行をlunch-options APIのレスポンスへ変換する', async () => {

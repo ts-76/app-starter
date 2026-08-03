@@ -25,9 +25,7 @@
       "Read(**/.dev.vars.*)",
       "Bash(wrangler deploy:*)",
       "Bash(wrangler delete:*)",
-      "Bash(git push origin main:*)",
       "Bash(git push --force:*)"
     ]
-  },
-  "enabledPlugins": {}
+  }
 }

@@ -1,23 +1,8 @@
 {
   "$schema": "../../schemas/cloudflare-config.schema.json",
-  "projectId": "internal-tools",
-  "accountId": "934c6255d681d05e1fa9903560de8a59",
+  "projectId": "ai-app-starter",
   "environment": "production",
   "app": {
-    "id": "sales-report"
-  },
-  "customDomain": {
-    "baseDomain": "tslab.app",
-    "hostname": "sales-report.tslab.app"
-  },
-  "access": {
-    "authDomain": "internal-tools-tslab-app.cloudflareaccess.com",
-    "path": "/app",
-    "resourceNames": {
-      "identityProvider": "internal-tools-email-one-time-pin",
-      "emailList": "internal-tools-sales-emails",
-      "application": "internal-tools-sales-report",
-      "policy": "internal-tools-sales-report-allow-sales"
-    }
+    "id": "ai-app-starter"
   }
 }

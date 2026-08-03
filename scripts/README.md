@@ -31,13 +31,13 @@ MCP管理対象のないデフォルト構成として正常終了します。�
 `doctor`は外部サービスへ接続せず、次のローカル状態を確認します。
 
 - Node.jsがこのプロジェクトの対応versionであること
+- npmがversion 11以上であること
 - projectにWrangler packageがインストールされていること
 - `config/cloudflare/production.json`とAccess用CSVが正しいこと
 - Git repository内で実行していること
 - `.mcp.json`と`.codex/config.toml`のMCP server名・URLが一致していること
 - 任意のGitHub CLIを実行できること
 
-`npm run doctor`を起動できた時点でnpmは利用できるため、npm自体のversion確認は行いません。
 GitHub認証、Wrangler認証、Cloudflare account、Workers Builds、MCPの接続状態もローカルのdoctorでは
 確認しません。Cloudflareの現在値は、反映を依頼された会話でMCPのGETにより確認します。
 

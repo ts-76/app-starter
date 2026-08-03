@@ -1,5 +1,5 @@
 {
-  "name": "team-lunch-vote",
+  "name": "ai-app-starter",
   "private": true,
   "type": "module",
   "scripts": {
@@ -19,7 +19,7 @@
     "test:watch": "vp test watch",
     "typecheck": "react-router typegen && vp check --no-fmt --no-lint",
     "check": "react-router typegen && vp check && secretlint \"**/*\" && vp test",
-    "typegen": "wrangler types && react-router typegen"
+    "typegen": "wrangler types --strict-vars false && react-router typegen"
   },
   "dependencies": {
     "hono": "4.12.32",

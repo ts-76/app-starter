@@ -47,7 +47,8 @@ describe('Workers Builds bundle', () => {
 
     expect(wranglerConfig).toContain('"workers_dev": true')
     expect(wranglerConfig).toContain('"binding": "DB"')
-    expect(wranglerConfig).toContain('"database_name": "sales-report-db"')
+    expect(wranglerConfig).toContain('"database_name": "ai-app-starter-db"')
+    expect(wranglerConfig).toContain('"ALLOW_INDEXING": "false"')
     expect(wranglerConfig).not.toContain('"durable_objects"')
     expect(wranglerConfig).not.toContain('"ADMIN_API_TOKEN"')
     expect(wranglerConfig).not.toContain('ACCESS_')

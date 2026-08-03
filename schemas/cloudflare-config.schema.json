@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://sales-report.local/schemas/cloudflare-config.schema.json",
-  "title": "Sales Report Cloudflare configuration",
+  "$id": "https://ai-app-starter.local/schemas/cloudflare-config.schema.json",
+  "title": "AI App Starter Cloudflare configuration",
   "type": "object",
   "additionalProperties": false,
   "required": ["projectId", "environment", "app"],
