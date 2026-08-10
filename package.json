@@ -22,7 +22,7 @@
     "typegen": "wrangler types --strict-vars false && react-router typegen"
   },
   "dependencies": {
-    "hono": "4.12.32",
+    "hono": "4.12.33",
     "isbot": "^5.2.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
