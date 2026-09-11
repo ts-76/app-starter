@@ -29,7 +29,7 @@
     "react-router": "^8.3.0"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.50.0",
+    "@cloudflare/vite-plugin": "^1.54.7",
     "@hono/cli": "^0.1.10",
     "@react-router/dev": "^8.3.0",
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.4",
@@ -42,7 +42,7 @@
     "typescript": "^7.0.2",
     "vite": "^8.2.0",
     "vite-plus": "0.2.6",
-    "wrangler": "4.118.0"
+    "wrangler": "4.131.0"
   },
   "overrides": {
     "@hono/node-server": "2.0.12",
